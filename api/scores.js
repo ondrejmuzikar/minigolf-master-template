@@ -1,6 +1,6 @@
 import { getRedis } from "./_redis.js";
 
-const SCORES_KEY = "scores";
+const SEASON_KEY = "season";
 
 function readBody(req) {
   if (typeof req.body === "string") {
@@ -13,8 +13,23 @@ function readBody(req) {
   return req.body && typeof req.body === "object" ? req.body : {};
 }
 
-async function readScores(redis) {
-  const v = await redis.get(SCORES_KEY);
+function qVal(v) {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
+
+function seasonRedisKey(category) {
+  return `scores:${category}`;
+}
+
+function historyRedisKey(category) {
+  return `scores:${category}:history`;
+}
+
+const VALID_CAT = new Set(["do15", "od15"]);
+
+async function readList(redis, key) {
+  const v = await redis.get(key);
   if (Array.isArray(v)) return v;
   if (typeof v === "string") {
     try {
@@ -25,6 +40,10 @@ async function readScores(redis) {
     }
   }
   return [];
+}
+
+async function writeList(redis, key, list) {
+  await redis.set(key, list);
 }
 
 function nickFrom(row) {
@@ -38,6 +57,72 @@ function scoreFrom(row) {
   return Number.isFinite(n) ? n : NaN;
 }
 
+async function seasonActive(redis) {
+  const s = await redis.get(SEASON_KEY);
+  return !!(s && typeof s === "object" && s.active === true);
+}
+
+function mergeRow(prev, incoming, idPrefer) {
+  const email =
+    typeof incoming.email === "string" && incoming.email.includes("@")
+      ? incoming.email.trim()
+      : typeof prev?.email === "string"
+        ? prev.email
+        : undefined;
+  const row = {
+    id: String(idPrefer || incoming?.id || prev?.id || ""),
+    přezdívka: incoming["přezdívka"],
+    skóre: incoming["skóre"],
+    kolo: incoming["kolo"] ?? "",
+    poznámka: incoming["poznámka"] ?? "",
+    datum: incoming.datum ?? prev?.datum,
+  };
+  if (email) row.email = email;
+  return row;
+}
+
+function applyMerge(list, přezdívka, skóre, kolo, poznámka, datum, id, email) {
+  const lower = přezdívka.toLowerCase();
+  const idx = list.findIndex((r) => nickFrom(r).toLowerCase() === lower);
+  let changed = false;
+  let next;
+  if (idx !== -1) {
+    const prev = list[idx];
+    const prevScore = scoreFrom(prev);
+    if (skóre < prevScore) {
+      next = [...list];
+      next[idx] = mergeRow(
+        prev,
+        {
+          přezdívka,
+          skóre,
+          kolo: kolo || prev["kolo"] || "",
+          poznámka: poznámka.trim(),
+          datum,
+          ...(email ? { email } : {}),
+        },
+        prev.id || id
+      );
+      changed = true;
+    } else {
+      next = list;
+    }
+  } else {
+    const row = {
+      id,
+      přezdívka,
+      skóre,
+      kolo,
+      poznámka: poznámka.trim(),
+      datum,
+    };
+    if (email) row.email = email;
+    next = [...list, row];
+    changed = true;
+  }
+  return { next, changed };
+}
+
 export default async function handler(req, res) {
   let redis;
   try {
@@ -47,8 +132,14 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "GET") {
+    const category = String(qVal(req.query?.category) || "").toLowerCase();
+    const board = String(qVal(req.query?.board) || "").toLowerCase();
+    if (!VALID_CAT.has(category) || !["season", "history"].includes(board)) {
+      return res.status(400).json({ error: "Use category=do15|od15 and board=season|history" });
+    }
+    const key = board === "history" ? historyRedisKey(category) : seasonRedisKey(category);
     try {
-      const scores = await readScores(redis);
+      const scores = await readList(redis, key);
       return res.status(200).json(scores);
     } catch (e) {
       return res.status(500).json({ error: e.message });
@@ -57,87 +148,83 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     const body = readBody(req);
+    const category = String(body.category || "").toLowerCase();
+    if (!VALID_CAT.has(category)) {
+      return res.status(400).json({ error: "Missing or invalid category (do15|od15)" });
+    }
     const přezdívka = nickFrom(body);
     const skóre = Number(body["skóre"] ?? body.score);
     if (!přezdívka || !Number.isFinite(skóre) || skóre < 0) {
       return res.status(400).json({ error: "Missing or invalid přezdívka / skóre" });
     }
     const kolo =
-      body.kolo != null && String(body.kolo).trim() !== ""
-        ? String(body.kolo)
-        : "";
-    const poznámka = typeof body.poznámka === "string" ? body.poznámka : typeof body.note === "string" ? body.note : "";
+      body.kolo != null && String(body.kolo).trim() !== "" ? String(body.kolo) : "";
+    const poznámka =
+      typeof body.poznámka === "string"
+        ? body.poznámka
+        : typeof body.note === "string"
+          ? body.note
+          : "";
     const datum = typeof body.datum === "string" ? body.datum : new Date().toISOString();
     const id = String(body.id || Date.now());
+    const email =
+      typeof body.email === "string" && body.email.includes("@") ? body.email.trim() : "";
 
     try {
-      const list = await readScores(redis);
-      const lower = přezdívka.toLowerCase();
-      const idx = list.findIndex((r) => nickFrom(r).toLowerCase() === lower);
+      const histKey = historyRedisKey(category);
+      const seaKey = seasonRedisKey(category);
+      const histList = await readList(redis, histKey);
+      const hRes = applyMerge(histList, přezdívka, skóre, kolo, poznámka, datum, id, email);
+      if (hRes.changed) await writeList(redis, histKey, hRes.next);
 
-      let changed = false;
-      let next;
-      if (idx !== -1) {
-        const prev = list[idx];
-        const prevScore = scoreFrom(prev);
-        if (skóre < prevScore) {
-          next = [...list];
-          next[idx] = {
-            id: prev.id || id,
-            přezdívka,
-            skóre,
-            kolo: kolo || prev["kolo"] || "",
-            poznámka: poznámka.trim(),
-            datum,
-          };
-          changed = true;
-        } else {
-          next = list;
-        }
-      } else {
-        next = [
-          ...list,
-          {
-            id,
-            přezdívka,
-            skóre,
-            kolo,
-            poznámka: poznámka.trim(),
-            datum,
-          },
-        ];
-        changed = true;
+      let sRes = { next: await readList(redis, seaKey), changed: false };
+      if (await seasonActive(redis)) {
+        sRes = applyMerge(sRes.next, přezdívka, skóre, kolo, poznámka, datum, id, email);
+        if (sRes.changed) await writeList(redis, seaKey, sRes.next);
       }
 
-      if (changed) await redis.set(SCORES_KEY, next);
-      return res.status(200).json({ changed, scores: next });
+      const seasonList = await readList(redis, seaKey);
+      const historyList = await readList(redis, histKey);
+      return res.status(200).json({
+        changed: hRes.changed || sRes.changed,
+        scoresSeason: seasonList,
+        scoresHistory: historyList,
+      });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
   }
 
   if (req.method === "DELETE") {
-    const id = req.query?.id;
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({ error: "Missing id query parameter" });
+    const category = String(qVal(req.query?.category) || "").toLowerCase();
+    const id = qVal(req.query?.id);
+    if (!VALID_CAT.has(category) || !id) {
+      return res.status(400).json({ error: "Missing category or id" });
     }
     try {
-      const list = await readScores(redis);
-      const next = list.filter((r) => String(r.id) !== String(id));
-      if (next.length === list.length) {
-        return res.status(404).json({ error: "Not found" });
-      }
-      await redis.set(SCORES_KEY, next);
-      return res.status(200).json({ ok: true, scores: next });
+      const seaKey = seasonRedisKey(category);
+      const histKey = historyRedisKey(category);
+      let sea = await readList(redis, seaKey);
+      let hist = await readList(redis, histKey);
+      const hit =
+        sea.find((r) => String(r.id) === String(id)) || hist.find((r) => String(r.id) === String(id));
+      if (!hit) return res.status(404).json({ error: "Not found" });
+      const nk = nickFrom(hit).toLowerCase();
+      sea = sea.filter((r) => nickFrom(r).toLowerCase() !== nk);
+      hist = hist.filter((r) => nickFrom(r).toLowerCase() !== nk);
+      await writeList(redis, seaKey, sea);
+      await writeList(redis, histKey, hist);
+      return res.status(200).json({ ok: true, scoresSeason: sea, scoresHistory: hist });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
   }
 
   if (req.method === "PUT") {
-    const id = req.query?.id;
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({ error: "Missing id query parameter" });
+    const category = String(qVal(req.query?.category) || "").toLowerCase();
+    const id = qVal(req.query?.id);
+    if (!VALID_CAT.has(category) || !id) {
+      return res.status(400).json({ error: "Missing category or id" });
     }
     const body = readBody(req);
     const přezdívka = nickFrom(body);
@@ -146,20 +233,45 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing or invalid přezdívka / skóre" });
     }
     const kolo =
-      body.kolo != null && String(body.kolo).trim() !== ""
-        ? String(body.kolo)
-        : "";
-    const poznámka = typeof body.poznámka === "string" ? body.poznámka : typeof body.note === "string" ? body.note : "";
+      body.kolo != null && String(body.kolo).trim() !== "" ? String(body.kolo) : "";
+    const poznámka =
+      typeof body.poznámka === "string"
+        ? body.poznámka
+        : typeof body.note === "string"
+          ? body.note
+          : "";
     const datum = typeof body.datum === "string" ? body.datum : new Date().toISOString();
+    const emailRaw = typeof body.email === "string" ? body.email.trim() : undefined;
 
     try {
-      const list = await readScores(redis);
-      const idx = list.findIndex((r) => String(r.id) === String(id));
-      if (idx === -1) return res.status(404).json({ error: "Not found" });
-      const next = [...list];
-      next[idx] = { id: String(id), přezdívka, skóre, kolo, poznámka: poznámka.trim(), datum };
-      await redis.set(SCORES_KEY, next);
-      return res.status(200).json({ ok: true, scores: next });
+      const seaKey = seasonRedisKey(category);
+      const histKey = historyRedisKey(category);
+      let sea = await readList(redis, seaKey);
+      let hist = await readList(redis, histKey);
+      const hit =
+        sea.find((r) => String(r.id) === String(id)) || hist.find((r) => String(r.id) === String(id));
+      if (!hit) return res.status(404).json({ error: "Not found" });
+      const nk = nickFrom(hit).toLowerCase();
+
+      const patch = (row) => {
+        if (nickFrom(row).toLowerCase() !== nk) return row;
+        const next = {
+          ...row,
+          přezdívka,
+          skóre,
+          kolo,
+          poznámka: poznámka.trim(),
+          datum,
+        };
+        if (emailRaw && emailRaw.includes("@")) next.email = emailRaw;
+        else if (emailRaw === "") delete next.email;
+        return next;
+      };
+      sea = sea.map(patch);
+      hist = hist.map(patch);
+      await writeList(redis, seaKey, sea);
+      await writeList(redis, histKey, hist);
+      return res.status(200).json({ ok: true, scoresSeason: sea, scoresHistory: hist });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }

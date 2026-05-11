@@ -15,8 +15,9 @@ async function parseJson(res) {
   }
 }
 
-export async function getScores() {
-  const res = await fetch(apiUrl("/api/scores"));
+export async function getScores(category, board) {
+  const q = new URLSearchParams({ category, board });
+  const res = await fetch(apiUrl(`/api/scores?${q}`));
   if (!res.ok) throw new Error(`GET /api/scores failed: ${res.status}`);
   const data = await parseJson(res);
   return Array.isArray(data) ? data : [];
@@ -32,15 +33,15 @@ export async function postScore(body) {
   return parseJson(res);
 }
 
-export async function deleteScore(id) {
-  const q = new URLSearchParams({ id: String(id) });
+export async function deleteScore(category, id) {
+  const q = new URLSearchParams({ category, id: String(id) });
   const res = await fetch(apiUrl(`/api/scores?${q}`), { method: "DELETE" });
   if (!res.ok) throw new Error(`DELETE /api/scores failed: ${res.status}`);
   return parseJson(res);
 }
 
-export async function putScore(id, body) {
-  const q = new URLSearchParams({ id: String(id) });
+export async function putScore(category, id, body) {
+  const q = new URLSearchParams({ category, id: String(id) });
   const res = await fetch(apiUrl(`/api/scores?${q}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
