@@ -1,10 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import * as api from "./apiClient.js";
 
-const SK = {
-  U15_ALL: "mg_u15_all", O15_ALL: "mg_o15_all",
-  U15_SEZ: "mg_u15_sez", O15_SEZ: "mg_o15_sez",
-  PIN: "mg_pin", SEASON: "mg_season",
-};
+const SK = { PIN: "mg_pin" };
 
 const DEFAULT_PIN = "357753";
 
@@ -17,6 +14,30 @@ const MEDAL_COLORS = [
 
 const fmt = (iso) => { const d = new Date(iso); return `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`; };
 const sortP = (arr) => [...arr].sort((a,b) => a.score - b.score);
+
+/** Normalizace záznamu z API (české klíče) do tvaru pro UI */
+function rowToView(r) {
+  if (!r || typeof r !== "object") return null;
+  return {
+    id: String(r.id ?? ""),
+    nick: r["přezdívka"] ?? r.nick ?? "",
+    score: Number(r["skóre"] ?? r.score) || 0,
+    round: r["kolo"] != null && String(r["kolo"]).trim() !== "" ? String(r["kolo"]) : "—",
+    note: r["poznámka"] ?? r.note ?? "",
+    date: r["datum"] ?? r.date ?? "",
+  };
+}
+
+function viewToApiRow(v) {
+  return {
+    id: v.id,
+    přezdívka: v.nick,
+    skóre: Number(v.score),
+    kolo: v.round === "—" ? "" : String(v.round ?? ""),
+    poznámka: v.note ?? "",
+    datum: v.date,
+  };
+}
 const daysUntil = (isoDate) => {
   if (!isoDate) return null;
   const diff = new Date(isoDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0);
@@ -24,13 +45,13 @@ const daysUntil = (isoDate) => {
 };
 
 const sGet = async (key) => {
-  try { const r = await window.storage.get(key); if (r) return JSON.parse(r.value); } catch {}
+  try { const r = await window.storage.get(key); if (r) return JSON.parse(r.value); } catch { /* ignore */ }
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
 };
 const sSet = async (key, val) => {
   const s = JSON.stringify(val);
-  try { await window.storage.set(key, s); } catch {}
-  try { localStorage.setItem(key, s); } catch {}
+  try { await window.storage.set(key, s); } catch { /* ignore */ }
+  try { localStorage.setItem(key, s); } catch { /* ignore */ }
 };
 
 const inputCls = "w-full rounded-2xl border-2 border-gray-100 px-4 py-3 bg-gray-50 text-base font-semibold focus:outline-none focus:border-green-400 transition-colors";
@@ -121,7 +142,7 @@ function NewSeasonModal({ onSave, onCancel }) {
           <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Konec sezóny</label>
           <input type="date" className={inputCls + " mt-1"} value={endDate} onChange={e => setEndDate(e.target.value)} />
         </div>
-        <p className="text-xs text-gray-400 mb-5">Sezónní žebříček se resetuje — historický zůstane.</p>
+        <p className="text-xs text-gray-400 mb-5">Žebříček v databázi se vymaže — začíná se od nuly.</p>
         <div className="flex gap-2">
           <button onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100">Zrušit</button>
           <button onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-green-700">Zahájit</button>
@@ -132,13 +153,13 @@ function NewSeasonModal({ onSave, onCancel }) {
 }
 
 function EditPlayerModal({ player, onSave, onCancel }) {
-  const [f, setF] = useState({ nick: player.nick, score: String(player.score), round: player.round === "—" ? "" : player.round, note: player.note, email: player.email || "" });
-  const go = () => { const s = parseInt(f.score); if (!f.nick.trim() || isNaN(s)) return; onSave({ ...player, nick: f.nick.trim(), score: s, round: f.round||"—", note: f.note.trim(), email: f.email.trim() }); };
+  const [f, setF] = useState({ nick: player.nick, score: String(player.score), round: player.round === "—" ? "" : player.round, note: player.note });
+  const go = () => { const s = parseInt(f.score, 10); if (!f.nick.trim() || Number.isNaN(s)) return; onSave({ ...player, nick: f.nick.trim(), score: s, round: f.round||"—", note: f.note.trim() }); };
   return (
     <Overlay>
       <div className="bg-white rounded-3xl shadow-2xl p-5 max-w-xs w-full mx-4 border-4 border-orange-400">
         <h2 className="font-black text-xl mb-6 text-center">✏️ Upravit hráče</h2>
-        {[["Přezdívka","nick","text",{}],["Skóre","score","number",{min:0,inputMode:"numeric"}],["Kolo č.","round","number",{min:1,inputMode:"numeric"}],["Poznámka","note","text",{}],["Email","email","email",{}]].map(([l,k,t,ex]) => (
+        {[["Přezdívka","nick","text",{}],["Skóre","score","number",{min:0,inputMode:"numeric"}],["Kolo č.","round","number",{min:1,inputMode:"numeric"}],["Poznámka","note","text",{}]].map(([l,k,t,ex]) => (
           <div key={k} className="mb-4">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{l}</label>
             <input type={t} {...ex} className={inputCls + " mt-1 focus:border-orange-400"} value={f[k]} onChange={e => setF(p => ({...p,[k]:e.target.value}))} />
@@ -162,7 +183,7 @@ function PlayerCard({ player, rank, isAdmin, onDelete, onEdit }) {
       <div className={`text-2xl font-black w-9 text-center shrink-0 ${isMedal ? mc.text : "text-gray-300"}`}>{isMedal ? MEDALS[rank] : rank+1}</div>
       <div className="flex-1 min-w-0">
         <div className={`font-bold text-base truncate ${isMedal ? mc.text : "text-gray-800"}`}>
-          {player.nick}{player.email && <span className="ml-1 text-xs opacity-40">🔔</span>}
+          {player.nick}
         </div>
         <div className={`text-xs truncate mt-0.5 ${isMedal ? mc.text+" opacity-70" : "text-gray-400"}`}>
           {player.note ? `📝 ${player.note} · ` : ""}kolo {player.round} · {fmt(player.date)}
@@ -172,160 +193,253 @@ function PlayerCard({ player, rank, isAdmin, onDelete, onEdit }) {
       {isAdmin && (
         <div className="flex gap-1 ml-1 shrink-0">
           <button onClick={e => { e.stopPropagation(); onEdit(player); }} className="w-8 h-8 rounded-xl bg-white bg-opacity-60 flex items-center justify-center hover:bg-opacity-100 transition-all text-base">✏️</button>
-          <button onClick={e => { e.stopPropagation(); onDelete(player.nick); }} className="w-8 h-8 rounded-xl bg-white bg-opacity-60 flex items-center justify-center hover:bg-opacity-100 transition-all text-base">🗑️</button>
+          <button onClick={e => { e.stopPropagation(); onDelete(player); }} className="w-8 h-8 rounded-xl bg-white bg-opacity-60 flex items-center justify-center hover:bg-opacity-100 transition-all text-base">🗑️</button>
         </div>
       )}
     </div>
   );
 }
 
-function LeaderboardPanel({ allKey, sezKey, label, color, isAdmin, season }) {
-  const [allPlayers, setAllPlayers] = useState([]);
-  const [sezPlayers, setSezPlayers] = useState([]);
-  const [view, setView] = useState("sezona");
-  const [form, setForm] = useState({ nick:"", score:"", round:"", note:"", email:"", wantsEmail:false });
+function ScoresBoard({ color, isAdmin, season }) {
+  const [players, setPlayers] = useState([]);
+  const [form, setForm] = useState({ nick: "", score: "", round: "", note: "" });
   const [dialog, setDialog] = useState(null);
   const [delTarget, setDelTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
-  const [flash, setFlash] = useState({ msg:"", ok:true });
+  const [flash, setFlash] = useState({ msg: "", ok: true });
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoadError("");
+    try {
+      const raw = await api.getScores();
+      const list = Array.isArray(raw) ? raw : [];
+      setPlayers(list.map(rowToView).filter(Boolean));
+    } catch (e) {
+      setLoadError(e?.message || "Nepodařilo se načíst data.");
+    } finally {
+      setLoaded(true);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    (async () => {
-      const a = await sGet(allKey); if (a) setAllPlayers(a);
-      const s = await sGet(sezKey); if (s) setSezPlayers(s);
-      setLoaded(true);
-    })();
-  }, [allKey, sezKey]);
+    const t = setTimeout(() => { load(); }, 0);
+    return () => clearTimeout(t);
+  }, [load, season?.label, season?.active, season?.endDate]);
 
-  const saveAll = async (u) => { setAllPlayers(u); await sSet(allKey, u); };
-  const saveSez = async (u) => { setSezPlayers(u); await sSet(sezKey, u); };
-  const flash$ = (msg, ok=true) => { setFlash({msg,ok}); setTimeout(()=>setFlash({msg:"",ok:true}),3500); };
+  useEffect(() => {
+    const id = setInterval(() => { load(); }, 30000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  const flash$ = (msg, ok = true) => {
+    setFlash({ msg, ok });
+    setTimeout(() => setFlash({ msg: "", ok: true }), 3500);
+  };
 
   const doAdd = async (nick) => {
-    const score = parseInt(form.score);
-    const round = form.round || "—";
-    const note  = form.note.trim();
-    const email = form.wantsEmail ? form.email.trim() : "";
-    const date  = new Date().toISOString();
+    const score = parseInt(form.score, 10);
+    const kolo = form.round ? String(form.round) : "";
+    const poznámka = form.note.trim();
+    const id = String(Date.now());
 
-    const oldAllSorted = sortP(allPlayers);
-    const aIdx = allPlayers.findIndex(p => p.nick.toLowerCase() === nick.toLowerCase());
-    let newAll;
-    if (aIdx !== -1) {
-      if (score < allPlayers[aIdx].score) { newAll = [...allPlayers]; newAll[aIdx] = {...newAll[aIdx], score, round, note, date, ...(email?{email}:{})}; }
-      else { newAll = allPlayers; }
-    } else { newAll = [...allPlayers, {nick, score, round, note, date, email}]; }
-    await saveAll(newAll);
-   
-    if (season?.active) {
-      const sIdx = sezPlayers.findIndex(p => p.nick.toLowerCase() === nick.toLowerCase());
-      let newSez;
-      if (sIdx !== -1) {
-        if (score < sezPlayers[sIdx].score) { newSez = [...sezPlayers]; newSez[sIdx] = {...newSez[sIdx], score, round, note, date, ...(email?{email}:{})}; }
-        else { newSez = sezPlayers; }
-      } else { newSez = [...sezPlayers, {nick, score, round, note, date, email}]; }
-      await saveSez(newSez);
+    try {
+      const r = await api.postScore({
+        id,
+        přezdívka: nick,
+        skóre: score,
+        kolo,
+        poznámka,
+      });
+      const next = (r.scores || []).map(rowToView).filter(Boolean);
+      setPlayers(next);
+      if (r.changed) flash$(`✅ ${nick} — ${score} ran!`);
+      else flash$("Beze změny — aktuální skóre je stejné nebo lepší.", false);
+    } catch (e) {
+      flash$(e?.message || "Chyba při ukládání.", false);
+      return;
     }
-
-    flash$(`✅ ${nick} — ${score} ran!`);
-    setForm({nick:"",score:"",round:"",note:"",email:"",wantsEmail:false});
+    setForm({ nick: "", score: "", round: "", note: "" });
   };
 
   const handleSubmit = () => {
-    const nick = form.nick.trim(); const score = parseInt(form.score);
-    if (!nick || isNaN(score) || score < 0) { flash$("❗ Vyplň přezdívku a skóre.", false); return; }
-    if (form.wantsEmail && !form.email.includes("@")) { flash$("❗ Zadej platný email.", false); return; }
-    const existing = allPlayers.find(p => p.nick.toLowerCase() === nick.toLowerCase());
+    const nick = form.nick.trim();
+    const score = parseInt(form.score, 10);
+    if (!nick || Number.isNaN(score) || score < 0) {
+      flash$("❗ Vyplň přezdívku a skóre.", false);
+      return;
+    }
+    const existing = players.find((p) => p.nick.toLowerCase() === nick.toLowerCase());
     if (existing) {
-      setDialog({ message: `Přezdívka „${nick}" už existuje. Jsi to ty?`,
+      setDialog({
+        message: `Přezdívka „${nick}" už existuje. Jsi to ty?`,
         onYes: () => { setDialog(null); doAdd(nick); },
-        onNo:  () => { setDialog(null); flash$("❗ Zvol jinou přezdívku.", false); setForm(f=>({...f,nick:""})); }});
-    } else { doAdd(nick); }
+        onNo: () => {
+          setDialog(null);
+          flash$("❗ Zvol jinou přezdívku.", false);
+          setForm((f) => ({ ...f, nick: "" }));
+        },
+      });
+    } else {
+      doAdd(nick);
+    }
   };
 
   const confirmDelete = async () => {
-    if (!delTarget) return;
-    await saveAll(allPlayers.filter(p => p.nick !== delTarget));
-    await saveSez(sezPlayers.filter(p => p.nick !== delTarget));
-    flash$(`🗑️ ${delTarget} smazán.`);
+    if (!delTarget?.id) return;
+    const nick = delTarget.nick;
+    try {
+      const res = await api.deleteScore(delTarget.id);
+      setPlayers((res.scores || []).map(rowToView).filter(Boolean));
+      flash$(`🗑️ ${nick} smazán.`);
+    } catch (e) {
+      flash$(e?.message || "Smazání se nezdařilo.", false);
+    }
     setDelTarget(null);
   };
 
   const handleEditSave = async (updated) => {
-    await saveAll(allPlayers.map(p => p.nick === editTarget.nick ? updated : p));
-    await saveSez(sezPlayers.map(p => p.nick === editTarget.nick ? updated : p));
-    setEditTarget(null); flash$(`✅ ${updated.nick} upraven.`);
+    if (!editTarget?.id) return;
+    try {
+      const res = await api.putScore(editTarget.id, viewToApiRow(updated));
+      setPlayers((res.scores || []).map(rowToView).filter(Boolean));
+      setEditTarget(null);
+      flash$(`✅ ${updated.nick} upraven.`);
+    } catch (e) {
+      flash$(e?.message || "Uložení se nezdařilo.", false);
+    }
   };
 
   const days = season?.endDate ? daysUntil(season.endDate) : null;
-  const displayList = sortP(view === "sezona" ? sezPlayers : allPlayers);
+  const displayList = sortP(players);
 
   return (
     <div className="w-full">
       {dialog && <ConfirmDialog {...dialog} yesLabel="Ano, jsem to já" noLabel="Ne, jiný hráč" onNo={dialog.onNo} />}
-      {delTarget && <ConfirmDialog icon="🗑️" message={`Smazat hráče „${delTarget}"?`} yesLabel="Smazat" danger onYes={confirmDelete} onNo={() => setDelTarget(null)} />}
+      {delTarget && (
+        <ConfirmDialog
+          icon="🗑️"
+          message={`Smazat hráče „${delTarget.nick}"?`}
+          yesLabel="Smazat"
+          danger
+          onYes={confirmDelete}
+          onNo={() => setDelTarget(null)}
+        />
+      )}
       {editTarget && <EditPlayerModal player={editTarget} onSave={handleEditSave} onCancel={() => setEditTarget(null)} />}
 
-      <div className="rounded-2xl px-5 py-3 mb-5 text-center font-black text-2xl text-white" style={{ background: color, boxShadow: "0 4px 20px 0 rgba(0,0,0,0.15)" }}>
-        {label}
-        {isAdmin && <span className="ml-2 text-xs bg-white bg-opacity-20 rounded-full px-2 py-0.5 font-bold">ADMIN</span>}
+      <div
+        className="rounded-2xl px-5 py-3 mb-5 text-center font-black text-2xl text-white flex items-center justify-center gap-3 flex-wrap"
+        style={{ background: color, boxShadow: "0 4px 20px 0 rgba(0,0,0,0.15)" }}
+      >
+        <span>Žebříček</span>
+        {isAdmin && <span className="text-xs bg-white bg-opacity-20 rounded-full px-2 py-0.5 font-bold">ADMIN</span>}
+        <button
+          type="button"
+          onClick={() => {
+            setRefreshing(true);
+            load();
+          }}
+          disabled={refreshing}
+          className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white bg-opacity-25 hover:bg-opacity-40 text-white disabled:opacity-50"
+        >
+          {refreshing ? "…" : "↻ Obnovit"}
+        </button>
       </div>
 
+      {loadError && (
+        <div className="mb-5 rounded-2xl px-4 py-2.5 text-sm font-semibold bg-red-50 border border-red-200 text-red-800">
+          {loadError}
+        </div>
+      )}
+
       {flash.msg && (
-        <div className={`mb-5 rounded-2xl px-4 py-2.5 text-sm font-semibold ${flash.ok ? "bg-green-50 border border-green-200 text-green-800" : "bg-orange-50 border border-orange-200 text-orange-800"}`}>
+        <div
+          className={`mb-5 rounded-2xl px-4 py-2.5 text-sm font-semibold ${
+            flash.ok ? "bg-green-50 border border-green-200 text-green-800" : "bg-orange-50 border border-orange-200 text-orange-800"
+          }`}
+        >
           {flash.msg}
+        </div>
+      )}
+
+      {season?.active && days !== null && (
+        <div
+          className="mb-5 rounded-2xl px-4 py-3 text-center text-sm font-bold border"
+          style={{
+            background: days <= 7 ? "#fef2f2" : "#f0fdf4",
+            borderColor: days <= 7 ? "#fca5a5" : "#86efac",
+            color: days <= 7 ? "#dc2626" : "#15803d",
+          }}
+        >
+          {days > 0
+            ? `⏳ Do konce sezóny ${season.label} zbývá ${days} ${days === 1 ? "den" : days < 5 ? "dny" : "dní"}`
+            : "🏁 Sezóna dnes končí!"}
         </div>
       )}
 
       <div className="bg-white rounded-3xl p-4 mb-5" style={cardShadow}>
         <div className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-widest">Přidat / aktualizovat výkon</div>
         <div className="flex flex-col gap-3 mb-3">
-          <input className={inputCls} placeholder="Přezdívka *" value={form.nick} onChange={e=>setForm(f=>({...f,nick:e.target.value}))} />
+          <input
+            className={inputCls}
+            placeholder="Přezdívka *"
+            value={form.nick}
+            onChange={(e) => setForm((f) => ({ ...f, nick: e.target.value }))}
+          />
           <div className="grid grid-cols-2 gap-3">
-            <input className={inputCls} placeholder="Skóre (ran) *" type="number" min="0" inputMode="numeric" value={form.score} onChange={e=>setForm(f=>({...f,score:e.target.value}))} />
-            <input className={inputCls} placeholder="Kolo č." type="number" min="1" inputMode="numeric" value={form.round} onChange={e=>setForm(f=>({...f,round:e.target.value}))} />
+            <input
+              className={inputCls}
+              placeholder="Skóre (ran) *"
+              type="number"
+              min="0"
+              inputMode="numeric"
+              value={form.score}
+              onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))}
+            />
+            <input
+              className={inputCls}
+              placeholder="Kolo č."
+              type="number"
+              min="1"
+              inputMode="numeric"
+              value={form.round}
+              onChange={(e) => setForm((f) => ({ ...f, round: e.target.value }))}
+            />
           </div>
-          <input className={inputCls} placeholder="Poznámka (volitelná)" value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} />
+          <input
+            className={inputCls}
+            placeholder="Poznámka (volitelná)"
+            value={form.note}
+            onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+          />
         </div>
-        <label className="flex items-center gap-2 cursor-pointer mb-4 mt-1">
-          <input type="checkbox" className="w-4 h-4 accent-green-600" checked={form.wantsEmail} onChange={e=>setForm(f=>({...f,wantsEmail:e.target.checked}))} />
-          <span className="text-sm text-gray-500">Chci upozornění na email <span className="text-gray-400 text-xs">(pro informování o sezónním výherci)</span></span>
-        </label>
-        {form.wantsEmail && (
-          <input className={inputCls + " mb-4"} placeholder="tvůj@email.cz" type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} />
-        )}
-        <button onClick={handleSubmit} className="w-full py-2.5 rounded-2xl font-black text-white text-base hover:opacity-90 transition-opacity" style={{ background: color }}>
+        <button
+          onClick={handleSubmit}
+          className="w-full py-2.5 rounded-2xl font-black text-white text-base hover:opacity-90 transition-opacity"
+          style={{ background: color }}
+        >
           ⛳ POTVRDIT
         </button>
       </div>
 
-      <div className="flex rounded-2xl overflow-hidden mb-5 bg-white" style={cardShadow}>
-        {[["sezona","Sezónní"],["vsechny","Historický"]].map(([val, lbl]) => (
-          <button key={val} onClick={() => setView(val)} className="flex-1 py-3 text-sm font-black transition-all"
-            style={view===val ? {background:color, color:"#fff"} : {color:"#9ca3af"}}>
-            {lbl}
-          </button>
-        ))}
-      </div>
-
-      {view === "sezona" && season?.active && days !== null && (
-        <div className="mb-5 rounded-2xl px-4 py-3 text-center text-sm font-bold border"
-          style={{ background: days <= 7 ? "#fef2f2" : "#f0fdf4", borderColor: days <= 7 ? "#fca5a5" : "#86efac", color: days <= 7 ? "#dc2626" : "#15803d" }}>
-          {days > 0 ? `⏳ Do konce sezóny ${season.label} zbývá ${days} ${days === 1 ? "den" : days < 5 ? "dny" : "dní"}` : "🏁 Sezóna dnes končí!"}
-        </div>
-      )}
-
       {!loaded ? (
         <div className="text-center text-gray-400 py-10">Načítám...</div>
       ) : displayList.length === 0 ? (
-        <div className="text-center text-gray-400 py-10 text-sm">
-          {view === "sezona" ? "V této sezóně zatím nikdo nehrál." : "Zatím žádní hráči."}
-        </div>
+        <div className="text-center text-gray-400 py-10 text-sm">Zatím žádní hráči.</div>
       ) : (
-        displayList.map((p,i) => (
-          <PlayerCard key={p.nick+i} player={p} rank={i} isAdmin={isAdmin}
-            onDelete={nick => setDelTarget(nick)} onEdit={() => setEditTarget(p)} />
+        displayList.map((p, i) => (
+          <PlayerCard
+            key={p.id || `${p.nick}-${i}`}
+            player={p}
+            rank={i}
+            isAdmin={isAdmin}
+            onDelete={setDelTarget}
+            onEdit={() => setEditTarget(p)}
+          />
         ))
       )}
     </div>
@@ -342,13 +456,20 @@ export default function App() {
   const [season, setSeason]               = useState(null);
   const [logoClicks, setLogoClicks]       = useState(0);
   const [adminFlash, setAdminFlash]       = useState("");
-  const [catTab, setCatTab]               = useState(0);
   const clickTimer = useRef(null);
 
   useEffect(() => {
     (async () => {
-      const p = await sGet(SK.PIN);    if (p) setPin(p);
-      const s = await sGet(SK.SEASON); if (s) setSeason(s);
+      try {
+        const p = await sGet(SK.PIN);
+        if (p) setPin(p);
+      } catch { /* ignore */ }
+      try {
+        const s = await api.getSeason();
+        if (s) setSeason(s);
+      } catch {
+        /* KV / API nedostupné při startu */
+      }
     })();
   }, []);
 
@@ -362,29 +483,34 @@ export default function App() {
   const handleSavePin = async (np) => { setPin(np); await sSet(SK.PIN, np); setShowChangePin(false); };
 
   const handleNewSeason = async (s) => {
-    await sSet(SK.SEASON, s); await sSet(SK.U15_SEZ, []); await sSet(SK.O15_SEZ, []);
-    setSeason(s); setShowNewSeason(false);
-    setAdminFlash(`✅ Sezóna „${s.label}" zahájena!`);
-    setTimeout(() => setAdminFlash(""), 5000);
+    try {
+      const res = await api.postSeason({ label: s.label, endDate: s.endDate, active: true });
+      setSeason(res.season || s);
+      setShowNewSeason(false);
+      setAdminFlash(`✅ Sezóna „${(res.season || s).label}" zahájena!`);
+      setTimeout(() => setAdminFlash(""), 5000);
+    } catch (e) {
+      setAdminFlash(e?.message || "Chyba při zahájení sezóny.");
+      setTimeout(() => setAdminFlash(""), 8000);
+    }
   };
 
-const handleEndSeason = async () => {
-  setShowEndSeason(false);
-  if (season) {
-    const ended = { ...season, active: false };
-    await sSet(SK.SEASON, ended);
-    setSeason(ended);
-    setAdminFlash(`✅ Sezóna ukončena.`);
-    setTimeout(() => setAdminFlash(""), 5000);
-  }
-};
+  const handleEndSeason = async () => {
+    setShowEndSeason(false);
+    if (!season) return;
+    try {
+      const res = await api.postSeason({ active: false });
+      if (res.season) setSeason(res.season);
+      else setSeason({ ...season, active: false });
+      setAdminFlash("✅ Sezóna ukončena.");
+      setTimeout(() => setAdminFlash(""), 5000);
+    } catch (e) {
+      setAdminFlash(e?.message || "Chyba při ukončení sezóny.");
+      setTimeout(() => setAdminFlash(""), 8000);
+    }
+  };
 
   const days = season?.endDate ? daysUntil(season.endDate) : null;
-  const TABS = [
-    { allKey: SK.U15_ALL, sezKey: SK.U15_SEZ, label: "Do 15 let", color: "#15803d" },
-    { allKey: SK.O15_ALL, sezKey: SK.O15_SEZ, label: "Od 15 let", color: "#1d4ed8" },
-  ];
-  const t = TABS[catTab];
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#f0fdf4 0%,#dbeafe 100%)", display: "flex", justifyContent: "center", fontFamily: "'Inter','Segoe UI',system-ui,sans-serif" }}>
@@ -425,16 +551,7 @@ const handleEndSeason = async () => {
           </div>
         )}
 
-        <div className="flex rounded-2xl overflow-hidden mb-6 bg-white" style={{ boxShadow: "0 2px 16px 0 rgba(0,0,0,0.08)" }}>
-          {TABS.map((tab, i) => (
-            <button key={i} onClick={() => setCatTab(i)} className="flex-1 py-3 text-base font-black transition-all"
-              style={catTab === i ? { background: tab.color, color: "#fff" } : { color: "#9ca3af", background: "white" }}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <LeaderboardPanel key={t.allKey} allKey={t.allKey} sezKey={t.sezKey} label={t.label} color={t.color} isAdmin={isAdmin} season={season} />
+        <ScoresBoard color="#15803d" isAdmin={isAdmin} season={season} />
       </div>
     </div>
   );
