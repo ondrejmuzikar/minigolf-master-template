@@ -13,7 +13,6 @@ const C = {
   gold: "#F5A623",
   silver: "#C0C0C0",
   bronze: "#CD7F32",
-  greyTheme: "#555555",
 };
 
 const fmt = (iso) => {
@@ -256,21 +255,18 @@ function EditPlayerModal({ player, onSave, onCancel }) {
 // Barvy karet podle kategorie a pořadí
 function rankCardStyle(rank, category) {
   const isOd15 = category === "od15";
-  const themeColor = isOd15 ? "#555555" : "#E8621A"; // Pokud je Od 15, použije šedou
-  
-  if (rank === 0) return { backgroundColor: isOd15 ? "#9E9E9E" : "#F5A623" }; // Zlato vs Šedá
-  if (rank === 1) return { backgroundColor: isOd15 ? "#BDBDBD" : "#C0C0C0" }; // Stříbro vs Světle šedá
-  if (rank === 2) return { backgroundColor: isOd15 ? "#757575" : "#CD7F32" }; // Bronz vs Tmavě šedá
-  return { backgroundColor: "#FFFFFF" };
+  if (rank === 0) return { backgroundColor: isOd15 ? "#9E9E9E" : C.gold };
+  if (rank === 1) return { backgroundColor: isOd15 ? "#BDBDBD" : C.silver };
+  if (rank === 2) return { backgroundColor: isOd15 ? "#757575" : C.bronze };
+  return { backgroundColor: C.card };
 }
 
 function rankCardClass(rank, category) {
   const isOd15 = category === "od15";
-  // Tady se mění barva ohraničení (border)
   if (rank === 0) return `border-2 ${isOd15 ? "border-gray-500" : "border-amber-700"} text-[#333]`;
   if (rank === 1) return `border-2 ${isOd15 ? "border-gray-400" : "border-gray-400"} text-[#333]`;
   if (rank === 2) return `border-2 ${isOd15 ? "border-gray-600" : "border-amber-800"} text-[#333]`;
-  return `border border-gray-300 bg-white text-[#333]`;
+  return `border ${isOd15 ? "border-gray-300" : "border-gray-300"} bg-white text-[#333]`;
 }
 
 function PlayerCard({ player, rank, isAdmin, onDelete, onEdit, category }) {
@@ -311,7 +307,7 @@ function PlayerCard({ player, rank, isAdmin, onDelete, onEdit, category }) {
   );
 }
 
-function ScoresBoard({ category, isAdmin, season, themeColor }) {
+function ScoresBoard({ category, isAdmin, season }) {
   const [seasonPlayers, setSeasonPlayers] = useState([]);
   const [historyPlayers, setHistoryPlayers] = useState([]);
   const [view, setView] = useState("sezona");
@@ -480,7 +476,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
           <span className="text-sm text-[#333] leading-snug">Chci upozornění na email (pro informování o sezónním výherci)</span>
         </label>
         {form.wantsEmail && <input className={inputCls + " mb-4"} placeholder="tvůj@email.cz" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />}
-        <button type="button" onClick={handleSubmit} className="w-full py-3 rounded-2xl font-black text-white text-base backgroundColor: themeColor hover:opacity-95 transition-opacity shadow-md">
+        <button type="button" onClick={handleSubmit} className="w-full py-3 rounded-2xl font-black text-white text-base bg-[#E8621A] hover:opacity-95 transition-opacity shadow-md">
           POTVRDIT
         </button>
       </div>
@@ -545,7 +541,6 @@ export default function App() {
   const [logoClicks, setLogoClicks] = useState(0);
   const [adminFlash, setAdminFlash] = useState("");
   const [catTab, setCatTab] = useState(0);
-  const currentThemeColor = catTab === 1 ? C.greyTheme : C.primary;
   const [seasonActionsRevealed, setSeasonActionsRevealed] = useState(false);
   const clickTimer = useRef(null);
   const seasonHoldTimer = useRef(null);
@@ -651,12 +646,12 @@ export default function App() {
             />
             <h1
               style={{
-                fontFamily: "'Inter', 'Montserrat', sans-serif",
-                fontWeight: 900,
-                fontSize: "clamp(1.8rem, 7vw, 2.6rem)",
-                color: "#1a1a1a",
-                lineHeight: 1.0,
-                letterSpacing: "-0.02em",
+                fontFamily: "'Fredoka One', cursive",
+                fontWeight: 400,
+                fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
+                color: "#4A4A4A",
+                lineHeight: 1.1,
+                letterSpacing: "0.01em",
               }}
             >
               Minigolf Liška
@@ -685,7 +680,7 @@ export default function App() {
               type="button"
               onClick={() => setCatTab(i)}
               className="flex-1 py-3.5 text-sm font-black transition-colors"
-              style={catTab === i ? { background: currentThemeColor, color: "#fff" } : { color: "#9ca3af", background: C.card }}
+              style={catTab === i ? { background: C.primary, color: "#fff" } : { color: "#9ca3af", background: C.card }}
             >
               {t.label}
             </button>
@@ -741,7 +736,7 @@ export default function App() {
           </div>
         )}
 
-        <ScoresBoard key={tab.category} category={tab.category} isAdmin={isAdmin} season={season} themeColor={currentThemeColor} />
+        <ScoresBoard key={tab.category} category={tab.category} isAdmin={isAdmin} season={season} />
       </div>
     </div>
   );
