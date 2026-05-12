@@ -15,22 +15,6 @@ const C = {
   bronze: "#CD7F32",
 };
 
-function FoxLogo({ className = "w-16 h-16 shrink-0" }) {
-  return (
-    <svg className={className} viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-      <circle cx="32" cy="36" r="20" fill={C.primary} />
-      <ellipse cx="20" cy="20" rx="9" ry="11" fill={C.primary} transform="rotate(-28 20 20)" />
-      <ellipse cx="44" cy="20" rx="9" ry="11" fill={C.primary} transform="rotate(28 44 20)" />
-      <ellipse cx="25" cy="34" rx="6" ry="7" fill="#FFF8F0" />
-      <ellipse cx="39" cy="34" rx="6" ry="7" fill="#FFF8F0" />
-      <circle cx="27" cy="35" r="2.2" fill={C.text} />
-      <circle cx="37" cy="35" r="2.2" fill={C.text} />
-      <ellipse cx="32" cy="44" rx="5" ry="3.5" fill="#FFF8F0" />
-      <ellipse cx="32" cy="46" rx="3" ry="2" fill={C.text} />
-    </svg>
-  );
-}
-
 const fmt = (iso) => {
   const d = new Date(iso);
   return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
@@ -176,29 +160,16 @@ function ChangePinModal({ currentPin, onSave, onCancel }) {
   const [f, setF] = useState({ old: "", n1: "", n2: "" });
   const [err, setErr] = useState("");
   const go = () => {
-    if (f.old !== currentPin) {
-      setErr("Starý PIN nesedí.");
-      return;
-    }
-    if (f.n1.length < 4) {
-      setErr("Min. 4 znaky.");
-      return;
-    }
-    if (f.n1 !== f.n2) {
-      setErr("PINy se neshodují.");
-      return;
-    }
+    if (f.old !== currentPin) { setErr("Starý PIN nesedí."); return; }
+    if (f.n1.length < 4) { setErr("Min. 4 znaky."); return; }
+    if (f.n1 !== f.n2) { setErr("PINy se neshodují."); return; }
     onSave(f.n1);
   };
   return (
     <Overlay>
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-xs w-full mx-4 border-4 border-[#4A4A4A]">
         <h2 className="font-black text-xl mb-6 text-center text-[#333]">Změnit PIN</h2>
-        {[
-          ["Starý PIN", "old"],
-          ["Nový PIN", "n1"],
-          ["Nový PIN znovu", "n2"],
-        ].map(([l, k]) => (
+        {[["Starý PIN", "old"], ["Nový PIN", "n1"], ["Nový PIN znovu", "n2"]].map(([l, k]) => (
           <div key={k} className="mb-4">
             <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">{l}</label>
             <input type="password" inputMode="numeric" className={inputCls + " mt-1"} value={f[k]} onChange={(e) => setF((p) => ({ ...p, [k]: e.target.value }))} />
@@ -206,12 +177,8 @@ function ChangePinModal({ currentPin, onSave, onCancel }) {
         ))}
         {err && <p className="text-red-500 text-sm mb-2 font-semibold">{err}</p>}
         <div className="flex gap-2 mt-4">
-          <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">
-            Zrušit
-          </button>
-          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#4A4A4A]">
-            Uložit
-          </button>
+          <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">Zrušit</button>
+          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#4A4A4A]">Uložit</button>
         </div>
       </div>
     </Overlay>
@@ -237,16 +204,10 @@ function NewSeasonModal({ onSave, onCancel }) {
           <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">Konec sezóny</label>
           <input type="date" className={inputCls + " mt-1"} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </div>
-        <p className="text-xs text-[#4A4A4A] mb-5">
-          Sezónní výsledky se zapíší do historického žebříčku. Vítězové s emailem dostanou zprávu.
-        </p>
+        <p className="text-xs text-[#4A4A4A] mb-5">Sezónní výsledky se zapíší do historického žebříčku. Vítězové s emailem dostanou zprávu.</p>
         <div className="flex gap-2">
-          <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">
-            Zrušit
-          </button>
-          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#E8621A]">
-            Zahájit
-          </button>
+          <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">Zrušit</button>
+          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#E8621A]">Zahájit</button>
         </div>
       </div>
     </Overlay>
@@ -264,14 +225,7 @@ function EditPlayerModal({ player, onSave, onCancel }) {
   const go = () => {
     const s = parseInt(f.score, 10);
     if (!f.nick.trim() || Number.isNaN(s)) return;
-    onSave({
-      ...player,
-      nick: f.nick.trim(),
-      score: s,
-      round: f.round || "—",
-      note: f.note.trim(),
-      email: f.email.trim(),
-    });
+    onSave({ ...player, nick: f.nick.trim(), score: s, round: f.round || "—", note: f.note.trim(), email: f.email.trim() });
   };
   return (
     <Overlay>
@@ -290,42 +244,41 @@ function EditPlayerModal({ player, onSave, onCancel }) {
           </div>
         ))}
         <div className="flex gap-2 mt-4">
-          <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">
-            Zrušit
-          </button>
-          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#E8621A]">
-            Uložit
-          </button>
+          <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">Zrušit</button>
+          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#E8621A]">Uložit</button>
         </div>
       </div>
     </Overlay>
   );
 }
 
-function rankCardClass(rank) {
-  if (rank === 0) return `border-2 border-amber-700 text-[#333]`;
-  if (rank === 1) return `border-2 border-gray-400 text-[#333]`;
-  if (rank === 2) return `border-2 border-amber-800 text-[#333]`;
-  return "border border-gray-300 bg-white text-[#333]";
-}
-
-function rankCardStyle(rank) {
-  if (rank === 0) return { backgroundColor: C.gold };
-  if (rank === 1) return { backgroundColor: C.silver };
-  if (rank === 2) return { backgroundColor: C.bronze };
+// Barvy karet podle kategorie a pořadí
+function rankCardStyle(rank, category) {
+  const isOd15 = category === "od15";
+  if (rank === 0) return { backgroundColor: isOd15 ? "#9E9E9E" : C.gold };
+  if (rank === 1) return { backgroundColor: isOd15 ? "#BDBDBD" : C.silver };
+  if (rank === 2) return { backgroundColor: isOd15 ? "#757575" : C.bronze };
   return { backgroundColor: C.card };
 }
 
-function PlayerCard({ player, rank, isAdmin, onDelete, onEdit }) {
+function rankCardClass(rank, category) {
+  const isOd15 = category === "od15";
+  if (rank === 0) return `border-2 ${isOd15 ? "border-gray-500" : "border-amber-700"} text-[#333]`;
+  if (rank === 1) return `border-2 ${isOd15 ? "border-gray-400" : "border-gray-400"} text-[#333]`;
+  if (rank === 2) return `border-2 ${isOd15 ? "border-gray-600" : "border-amber-800"} text-[#333]`;
+  return `border ${isOd15 ? "border-gray-300" : "border-gray-300"} bg-white text-[#333]`;
+}
+
+function PlayerCard({ player, rank, isAdmin, onDelete, onEdit, category }) {
   const top = rank < 3;
   return (
     <div
-      style={rankCardStyle(rank)}
-      className={`flex items-center gap-3 rounded-2xl px-4 py-3 mb-3 transition-shadow ${rankCardClass(rank)} ${top ? "shadow-md" : ""}`}
+      style={rankCardStyle(rank, category)}
+      className={`flex items-center gap-3 rounded-2xl px-4 py-3 mb-3 transition-shadow ${rankCardClass(rank, category)} ${top ? "shadow-md" : ""}`}
     >
       <div className={`text-xl font-black w-10 text-center shrink-0 ${top ? "text-[#333]" : "text-[#4A4A4A]"}`}>{rank + 1}.</div>
       <div className="flex-1 min-w-0">
-        <div className={`font-bold text-base truncate ${top ? "text-[#333]" : "text-[#333]"}`}>
+        <div className="font-bold text-base truncate text-[#333]">
           {player.nick}
           {player.email && <span className="ml-1 text-xs opacity-60">🔔</span>}
         </div>
@@ -333,31 +286,21 @@ function PlayerCard({ player, rank, isAdmin, onDelete, onEdit }) {
           {player.note ? `📝 ${player.note} · ` : ""}kolo {player.round} · {fmt(player.date)}
         </div>
       </div>
-      <div className={`text-xl font-black shrink-0 text-[#333]`}>{player.score}</div>
+      <div className="text-xl font-black shrink-0 text-[#333]">{player.score}</div>
       {isAdmin && (
         <div className="flex gap-1 ml-1 shrink-0">
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(player);
-            }}
+            onClick={(e) => { e.stopPropagation(); onEdit(player); }}
             className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center hover:bg-white text-base border border-black/10"
             aria-label="Upravit"
-          >
-            ✏️
-          </button>
+          >✏️</button>
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(player);
-            }}
+            onClick={(e) => { e.stopPropagation(); onDelete(player); }}
             className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center hover:bg-white text-base border border-black/10"
             aria-label="Smazat"
-          >
-            🗑️
-          </button>
+          >🗑️</button>
         </div>
       )}
     </div>
@@ -394,16 +337,12 @@ function ScoresBoard({ category, isAdmin, season }) {
   }, [category]);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      load();
-    }, 0);
+    const t = setTimeout(() => { load(); }, 0);
     return () => clearTimeout(t);
   }, [load, season?.label, season?.active, season?.endDate]);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      load();
-    }, 30000);
+    const id = setInterval(() => { load(); }, 30000);
     return () => clearInterval(id);
   }, [load]);
 
@@ -423,18 +362,9 @@ function ScoresBoard({ category, isAdmin, season }) {
     const poznámka = form.note.trim();
     const id = String(Date.now());
     const email = form.wantsEmail ? form.email.trim() : "";
-
     try {
-      const body = {
-        category,
-        id,
-        přezdívka: nick,
-        skóre: score,
-        kolo,
-        poznámka,
-      };
+      const body = { category, id, přezdívka: nick, skóre: score, kolo, poznámka };
       if (email && email.includes("@")) body.email = email;
-
       const r = await api.postScore(body);
       applyLists(r);
       if (r.changed) flash$(`✅ ${nick} — ${score} ran!`);
@@ -449,29 +379,16 @@ function ScoresBoard({ category, isAdmin, season }) {
   const handleSubmit = () => {
     const nick = form.nick.trim();
     const score = parseInt(form.score, 10);
-    if (!nick || Number.isNaN(score) || score < 0) {
-      flash$("❗ Vyplň přezdívku a skóre.", false);
-      return;
-    }
-    if (form.wantsEmail && !form.email.includes("@")) {
-      flash$("❗ Zadej platný email.", false);
-      return;
-    }
+    if (!nick || Number.isNaN(score) || score < 0) { flash$("❗ Vyplň přezdívku a skóre.", false); return; }
+    if (form.wantsEmail && !form.email.includes("@")) { flash$("❗ Zadej platný email.", false); return; }
     const existing =
       seasonPlayers.find((p) => p.nick.toLowerCase() === nick.toLowerCase()) ||
       historyPlayers.find((p) => p.nick.toLowerCase() === nick.toLowerCase());
     if (existing) {
       setDialog({
         message: `Přezdívka „${nick}" už existuje. Jsi to ty?`,
-        onYes: () => {
-          setDialog(null);
-          doAdd(nick);
-        },
-        onNo: () => {
-          setDialog(null);
-          flash$("❗ Zvol jinou přezdívku.", false);
-          setForm((f) => ({ ...f, nick: "" }));
-        },
+        onYes: () => { setDialog(null); doAdd(nick); },
+        onNo: () => { setDialog(null); flash$("❗ Zvol jinou přezdívku.", false); setForm((f) => ({ ...f, nick: "" })); },
       });
     } else {
       doAdd(nick);
@@ -528,10 +445,7 @@ function ScoresBoard({ category, isAdmin, season }) {
         </div>
         <button
           type="button"
-          onClick={() => {
-            setRefreshing(true);
-            load();
-          }}
+          onClick={() => { setRefreshing(true); load(); }}
           disabled={refreshing}
           className="text-xs font-bold px-3 py-2 rounded-xl border-2 border-[#E8621A] text-[#E8621A] hover:bg-[#E8621A] hover:text-white transition-colors disabled:opacity-50"
         >
@@ -542,27 +456,8 @@ function ScoresBoard({ category, isAdmin, season }) {
       {loadError && <div className="mb-5 rounded-2xl px-4 py-2.5 text-sm font-semibold bg-red-50 border border-red-200 text-red-800">{loadError}</div>}
 
       {flash.msg && (
-        <div
-          className={`mb-5 rounded-2xl px-4 py-2.5 text-sm font-semibold ${
-            flash.ok ? "bg-green-50 border border-green-200 text-green-800" : "bg-amber-50 border border-amber-200 text-amber-900"
-          }`}
-        >
+        <div className={`mb-5 rounded-2xl px-4 py-2.5 text-sm font-semibold ${flash.ok ? "bg-green-50 border border-green-200 text-green-800" : "bg-amber-50 border border-amber-200 text-amber-900"}`}>
           {flash.msg}
-        </div>
-      )}
-
-      {view === "sezona" && season?.active && days !== null && (
-        <div
-          className="mb-5 rounded-2xl px-4 py-3 text-center text-sm font-bold border-2"
-          style={{
-            background: days <= 7 ? "#fff0f0" : "#fff8f0",
-            borderColor: days <= 7 ? "#fca5a5" : "#fdba74",
-            color: days <= 7 ? "#b91c1c" : C.primary,
-          }}
-        >
-          {days > 0
-            ? `⏳ Do konce sezóny ${season.label} zbývá ${days} ${days === 1 ? "den" : days < 5 ? "dny" : "dní"}`
-            : "🏁 Sezóna dnes končí!"}
         </div>
       )}
 
@@ -586,26 +481,36 @@ function ScoresBoard({ category, isAdmin, season }) {
         </button>
       </div>
 
-      <div className="flex rounded-2xl overflow-hidden mb-5 bg-white border border-gray-200" style={cardShadow}>
-        {[
-          ["sezona", "Sezónní"],
-          ["vsechny", "Historický"],
-        ].map(([val, lbl]) => (
+      {/* Přepínač Sezónní / Historický */}
+      <div className="flex rounded-2xl overflow-hidden mb-4 bg-white border border-gray-200" style={cardShadow}>
+        {[["sezona", "Sezónní"], ["vsechny", "Historický"]].map(([val, lbl]) => (
           <button
             key={val}
             type="button"
             onClick={() => setView(val)}
             className="flex-1 py-3 text-sm font-black transition-colors"
-            style={
-              view === val
-                ? { background: C.primary, color: "#fff" }
-                : { color: "#9ca3af", background: C.card }
-            }
+            style={view === val ? { background: C.primary, color: "#fff" } : { color: "#9ca3af", background: C.card }}
           >
             {lbl}
           </button>
         ))}
       </div>
+
+      {/* Countdown jen pod Sezónní přepínačem */}
+      {view === "sezona" && season?.active && days !== null && (
+        <div
+          className="mb-5 rounded-2xl px-4 py-3 text-center text-sm font-bold border-2"
+          style={{
+            background: days <= 7 ? "#fff0f0" : "#fff8f0",
+            borderColor: days <= 7 ? "#fca5a5" : "#fdba74",
+            color: days <= 7 ? "#b91c1c" : C.primary,
+          }}
+        >
+          {days > 0
+            ? `⏳ Do konce sezóny ${season.label} zbývá ${days} ${days === 1 ? "den" : days < 5 ? "dny" : "dní"}`
+            : "🏁 Sezóna dnes končí!"}
+        </div>
+      )}
 
       {!loaded ? (
         <div className="text-center text-[#4A4A4A] py-10">Načítám...</div>
@@ -613,7 +518,7 @@ function ScoresBoard({ category, isAdmin, season }) {
         <div className="text-center text-[#4A4A4A] py-10 text-sm">{view === "sezona" ? "V této sezóně zatím nikdo nehrál." : "Zatím žádní hráči."}</div>
       ) : (
         displayList.map((p, i) => (
-          <PlayerCard key={p.id || `${p.nick}-${i}`} player={p} rank={i} isAdmin={isAdmin} onDelete={setDelTarget} onEdit={() => setEditTarget(p)} />
+          <PlayerCard key={p.id || `${p.nick}-${i}`} player={p} rank={i} isAdmin={isAdmin} onDelete={setDelTarget} onEdit={() => setEditTarget(p)} category={category} />
         ))
       )}
     </div>
@@ -649,9 +554,7 @@ export default function App() {
       try {
         const s = await api.getSeason();
         if (s) setSeason(s);
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     })();
   }, []);
 
@@ -707,9 +610,7 @@ export default function App() {
     clearTimeout(seasonHoldTimer.current);
     seasonHoldTimer.current = setTimeout(() => setSeasonActionsRevealed(true), 1500);
   };
-  const cancelSeasonRevealHold = () => {
-    clearTimeout(seasonHoldTimer.current);
-  };
+  const cancelSeasonRevealHold = () => { clearTimeout(seasonHoldTimer.current); };
 
   const days = season?.endDate ? daysUntil(season.endDate) : null;
   const tab = TABS[catTab];
@@ -730,29 +631,48 @@ export default function App() {
         />
       )}
       <div className="w-full max-w-lg px-5 py-10 pb-16 text-[#333]">
+
+        {/* HEADER - logo + název, klikatelné pro admin */}
         <header className="text-center mb-8 select-none">
-          <div className="flex flex-col items-center gap-3 mb-2 cursor-default" onClick={handleLogoClick}>
-            <FoxLogo className="w-20 h-20" />
+          <div
+            className="flex flex-col items-center gap-3 mb-2 cursor-default"
+            onClick={handleLogoClick}
+          >
+            <img
+              src="/liska.png"
+              alt="Minigolf Liška"
+              className="w-24 h-24 object-contain"
+              draggable={false}
+            />
             <h1
-              className="font-black text-[clamp(1.5rem,6vw,2.25rem)] leading-tight tracking-tight text-[#333]"
-              style={{ fontFamily: '"Nunito", sans-serif', fontWeight: 900 }}
+              style={{
+                fontFamily: "'Fredoka One', cursive",
+                fontWeight: 400,
+                fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
+                color: "#4A4A4A",
+                lineHeight: 1.1,
+                letterSpacing: "0.01em",
+              }}
             >
-              MINIGOLF LÍŠKA
+              Minigolf Liška
             </h1>
           </div>
           <p className="text-sm font-semibold text-[#4A4A4A] mt-1">Žebříček · Lužánky</p>
-          <p className="text-[11px] text-gray-400 mt-2 max-w-xs mx-auto">Tip: 5× rychle klikni na logo pro admin přístup</p>
         </header>
 
+        {/* Banner aktivní sezóny */}
         {season?.active && (
           <div className="mb-6 rounded-2xl px-4 py-3 text-center text-sm font-bold border-2 border-[#fdba74] bg-white text-[#333]" style={cardShadow}>
             <span className="text-[#E8621A]">🏆</span> Aktivní sezóna: {season.label}
             {days !== null && days >= 0 && (
-              <span className="block sm:inline sm:ml-2 mt-1 sm:mt-0 text-[#4A4A4A] font-semibold text-xs sm:text-sm">{days > 0 ? `${days} dní do konce` : "dnes končí!"}</span>
+              <span className="block sm:inline sm:ml-2 mt-1 sm:mt-0 text-[#4A4A4A] font-semibold text-xs sm:text-sm">
+                {days > 0 ? `${days} dní do konce` : "dnes končí!"}
+              </span>
             )}
           </div>
         )}
 
+        {/* Přepínač Do 15 / Od 15 */}
         <div className="flex rounded-2xl overflow-hidden mb-6 bg-white border border-gray-200" style={cardShadow}>
           {TABS.map((t, i) => (
             <button
@@ -767,6 +687,7 @@ export default function App() {
           ))}
         </div>
 
+        {/* Admin panel */}
         {isAdmin && (
           <div className="mb-6 rounded-2xl p-5 bg-white border-2 border-gray-200" style={cardShadow}>
             <div className="flex items-center justify-between mb-4">
@@ -779,13 +700,11 @@ export default function App() {
               <div className="mb-3 rounded-xl px-3 py-2 text-sm font-semibold bg-green-50 text-green-800 border border-green-200">{adminFlash}</div>
             )}
             {season && !season.active && (
-              <div className="mb-3 rounded-xl px-3 py-2 text-xs font-semibold bg-gray-50 text-[#4A4A4A] border border-gray-200">Žádná aktivní sezóna — zahaj novou se sekcí „Správa sezóny“ níže.</div>
+              <div className="mb-3 rounded-xl px-3 py-2 text-xs font-semibold bg-gray-50 text-[#4A4A4A] border border-gray-200">Žádná aktivní sezóna — zahaj novou se sekcí „Správa sezóny" níže.</div>
             )}
-
             <button type="button" onClick={() => setShowChangePin(true)} className="text-xs font-bold px-3 py-2 rounded-xl bg-[#4A4A4A] text-white hover:opacity-95 mb-4 w-full sm:w-auto">
               Změnit PIN
             </button>
-
             <div
               role="button"
               tabIndex={0}
@@ -794,17 +713,11 @@ export default function App() {
               onPointerUp={cancelSeasonRevealHold}
               onPointerLeave={cancelSeasonRevealHold}
               onPointerCancel={cancelSeasonRevealHold}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  startSeasonRevealHold();
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startSeasonRevealHold(); } }}
               onKeyUp={cancelSeasonRevealHold}
             >
               Správa sezóny — <span className="underline">podrž cca 1,5 s</span> pro zobrazení akcí
             </div>
-
             {seasonActionsRevealed && (
               <div className="mt-4 flex flex-wrap gap-2">
                 <button type="button" onClick={() => setShowNewSeason(true)} className="text-xs font-bold px-3 py-2 rounded-xl bg-[#E8621A] text-white hover:opacity-95">
