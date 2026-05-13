@@ -59,19 +59,24 @@ const daysUntil = (isoDate) => {
   return Math.ceil(diff / 86400000);
 };
 
-/** Část „X den / dny / dní“ (bez „do konce“). */
+/** Část „X den / dny / dní“ (bez „do konce“) — pro box pod přepínačem. */
 function czechDaysCountPhrase(count) {
   const n = Math.floor(Number(count));
   if (!Number.isFinite(n) || n < 0) return "";
   if (n === 1) return "1 den";
-  if (n >= 2 && n <= 4) return `${n} dny`;
+  if (n === 2 || n === 3 || n === 4) return `${n} dny`;
+  if (n >= 5) return `${n} dní`;
   return `${n} dní`;
 }
 
-/** Celá věta pro banner: „1 den do konce“, „3 dny do konce“, „5 dní do konce“. */
+/** Banner „Aktivní sezóna“: 1 den / 2–4 dny / 5+ dní + „do konce“. */
 function getCzechDays(count) {
-  const inner = czechDaysCountPhrase(count);
-  return inner ? `${inner} do konce` : "";
+  const n = Math.floor(Number(count));
+  if (!Number.isFinite(n) || n < 0) return "";
+  if (n === 1) return "1 den do konce";
+  if (n === 2 || n === 3 || n === 4) return `${n} dny do konce`;
+  if (n >= 5) return `${n} dní do konce`;
+  return "";
 }
 
 const sGet = async (key) => {
@@ -554,8 +559,8 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
             color: days <= 7 ? "#b91c1c" : themeColor,
           }}
         >
-          {days > 0
-            ? `⏳ Do konce sezóny ${season.label} zbývá ${czechDaysCountPhrase(days)}`
+          {Number(days) > 0
+            ? `⏳ Do konce sezóny ${season.label} zbývá ${czechDaysCountPhrase(Number(days))}`
             : "🏁 Sezóna dnes končí!"}
         </div>
       )}
@@ -707,9 +712,9 @@ export default function App() {
         {season?.active && (
           <div className="mb-6 rounded-2xl px-4 py-3 text-center text-sm font-bold border-2 border-[#fdba74] bg-white text-[#333]" style={cardShadow}>
             <span style={{ color: themeColor }}>🏆</span> Aktivní sezóna: {season.label}
-            {days !== null && days >= 0 && (
+            {days !== null && Number(days) >= 0 && (
               <span className="block sm:inline sm:ml-2 mt-1 sm:mt-0 text-[#4A4A4A] font-semibold text-xs sm:text-sm">
-                {days > 0 ? getCzechDays(days) : "dnes končí!"}
+                {Number(days) > 0 ? getCzechDays(Number(days)) : "dnes končí!"}
               </span>
             )}
           </div>
