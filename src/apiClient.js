@@ -66,3 +66,14 @@ export async function postSeason(body) {
   if (!res.ok) throw new Error(`POST /api/season failed: ${res.status}`);
   return parseJson(res);
 }
+
+/** Potvrzovací nebo jiný jednorázový email přes /api/send-email (neblokuje žebříček při chybě). */
+export async function postSendEmail(payload) {
+  const res = await fetch(apiUrl("/api/send-email"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`POST /api/send-email failed: ${res.status}`);
+  return parseJson(res);
+}

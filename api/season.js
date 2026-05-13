@@ -131,7 +131,7 @@ export default async function handler(req, res) {
               await sendMinigolfMail({
                 to: w.email.trim(),
                 subject: `Minigolf Liška — výhra v sezóně (${catLabel})`,
-                text: `Ahoj ${nickFrom(w)}!\n\nGratulujeme k 1. místu v sezóně „${label}“ (${catLabel}) s výsledkem ${scoreFrom(w)} ran.\n\n— Minigolf Liška`,
+                text: `Ahoj ${nickFrom(w)}!\n\nGratulujeme k 1. místu v sezóně „${label}“ (${catLabel}) s výsledkem ${scoreFrom(w)} ran.\n\nPřijďte se k nám zastavit pro vyzvednutí odměny!\n\n— Minigolf Liška`,
               });
             } catch (err) {
               console.error("sendMinigolfMail winner", cat, err);

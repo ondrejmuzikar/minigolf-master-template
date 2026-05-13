@@ -369,6 +369,19 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
       applyLists(r);
       if (r.changed) flash$(`✅ ${nick} — ${score} ran!`);
       else flash$("Beze změny — aktuální skóre je stejné nebo lepší.", false);
+      if (r.changed && email && email.includes("@")) {
+        const catLabel = category === "do15" ? "Do 15 let" : "Od 15 let";
+        try {
+          await api.postSendEmail({
+            to: email,
+            nick,
+            subject: "Minigolf Liška — potvrzení zápisu do žebříčku",
+            message: `Potvrzujeme, že tvůj výkon (${score} ran) byl úspěšně zapsán do žebříčku v kategorii ${catLabel}.`,
+          });
+        } catch {
+          /* email je nepovinný doplněk */
+        }
+      }
     } catch (e) {
       flash$(e?.message || "Chyba při ukládání.", false);
       return;
@@ -441,7 +454,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div className="flex items-center gap-2 min-h-[40px]">
           <h2 className="text-lg font-black text-[#333] tracking-tight">Žebříček</h2>
-          {isAdmin && <span className="text-[10px] font-black uppercase tracking-wider bg-[#E8621A] text-white px-2 py-1 rounded-full">Admin</span>}
+          {isAdmin && <span className="text-[10px] font-black uppercase tracking-wider text-white px-2 py-1 rounded-full" style={{ backgroundColor: themeColor }}>Admin</span>}
         </div>
         <button
   type="button"
@@ -473,7 +486,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
           <input className={inputCls} placeholder="Poznámka (volitelná)" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} />
         </div>
         <label className="flex items-start gap-2 cursor-pointer mb-3">
-          <input type="checkbox" className="w-4 h-4 mt-1 accent-[#E8621A] shrink-0" checked={form.wantsEmail} onChange={(e) => setForm((f) => ({ ...f, wantsEmail: e.target.checked }))} />
+          <input type="checkbox" className="w-4 h-4 mt-1 shrink-0" style={{ accentColor: themeColor }} checked={form.wantsEmail} onChange={(e) => setForm((f) => ({ ...f, wantsEmail: e.target.checked }))} />
           <span className="text-sm text-[#333] leading-snug">Chci upozornění na email (pro informování o sezónním výherci)</span>
         </label>
         {form.wantsEmail && <input className={inputCls + " mb-4"} placeholder="tvůj@email.cz" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />}
@@ -508,8 +521,8 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
           className="mb-5 rounded-2xl px-4 py-3 text-center text-sm font-bold border-2"
           style={{
             background: days <= 7 ? "#fff0f0" : "#fff8f0",
-            borderColor: days <= 7 ? "#fca5a5" : "#fdba74",
-            color: days <= 7 ? "#b91c1c" : C.primary,
+            borderColor: days <= 7 ? "#fca5a5" : themeColor,
+            color: days <= 7 ? "#b91c1c" : themeColor,
           }}
         >
           {days > 0
@@ -620,8 +633,7 @@ export default function App() {
 
   const days = season?.endDate ? daysUntil(season.endDate) : null;
   const tab = TABS[catTab];
-  // Pokud je catTab === 1 (Od 15 let), použije se šedá, jinak oranžová
-const themeColor = catTab === 1 ? "#555555" : C.primary;
+  const themeColor = catTab === 1 ? "#555555" : C.primary;
 
   return (
     <div className="min-h-screen flex justify-center" style={{ background: C.bg }}>
@@ -665,7 +677,7 @@ const themeColor = catTab === 1 ? "#555555" : C.primary;
         {/* Banner aktivní sezóny */}
         {season?.active && (
           <div className="mb-6 rounded-2xl px-4 py-3 text-center text-sm font-bold border-2 border-[#fdba74] bg-white text-[#333]" style={cardShadow}>
-            <span className="text-[#E8621A]">🏆</span> Aktivní sezóna: {season.label}
+            <span style={{ color: themeColor }}>🏆</span> Aktivní sezóna: {season.label}
             {days !== null && days >= 0 && (
               <span className="block sm:inline sm:ml-2 mt-1 sm:mt-0 text-[#4A4A4A] font-semibold text-xs sm:text-sm">
                 {days > 0 ? `${days} dní do konce` : "dnes končí!"}
@@ -738,7 +750,7 @@ const themeColor = catTab === 1 ? "#555555" : C.primary;
           </div>
         )}
 
-n={season} themeC<ScoresBoard key={tab.category} category={tab.category} isAdmin={isAdmin} season={season} themeColor={themeColor} />
+        <ScoresBoard key={tab.category} category={tab.category} isAdmin={isAdmin} season={season} themeColor={themeColor} />
       </div>
     </div>
   );
