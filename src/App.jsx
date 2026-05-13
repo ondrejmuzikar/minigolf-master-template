@@ -59,6 +59,21 @@ const daysUntil = (isoDate) => {
   return Math.ceil(diff / 86400000);
 };
 
+/** Část „X den / dny / dní“ (bez „do konce“). */
+function czechDaysCountPhrase(count) {
+  const n = Math.floor(Number(count));
+  if (!Number.isFinite(n) || n < 0) return "";
+  if (n === 1) return "1 den";
+  if (n >= 2 && n <= 4) return `${n} dny`;
+  return `${n} dní`;
+}
+
+/** Celá věta pro banner: „1 den do konce“, „3 dny do konce“, „5 dní do konce“. */
+function getCzechDays(count) {
+  const inner = czechDaysCountPhrase(count);
+  return inner ? `${inner} do konce` : "";
+}
+
 const sGet = async (key) => {
   try {
     const r = await window.storage.get(key);
@@ -540,7 +555,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
           }}
         >
           {days > 0
-            ? `⏳ Do konce sezóny ${season.label} zbývá ${days} ${days === 1 ? "den" : days < 5 ? "dny" : "dní"}`
+            ? `⏳ Do konce sezóny ${season.label} zbývá ${czechDaysCountPhrase(days)}`
             : "🏁 Sezóna dnes končí!"}
         </div>
       )}
@@ -694,7 +709,7 @@ export default function App() {
             <span style={{ color: themeColor }}>🏆</span> Aktivní sezóna: {season.label}
             {days !== null && days >= 0 && (
               <span className="block sm:inline sm:ml-2 mt-1 sm:mt-0 text-[#4A4A4A] font-semibold text-xs sm:text-sm">
-                {days > 0 ? `${days} dní do konce` : "dnes končí!"}
+                {days > 0 ? getCzechDays(days) : "dnes končí!"}
               </span>
             )}
           </div>
