@@ -350,6 +350,8 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const isDo15 = category === "do15";
+  const accentBg = isDo15 ? "bg-green-600" : "bg-blue-600";
 
   const mapList = (raw) => (Array.isArray(raw) ? raw : []).map(rowToView).filter(Boolean);
 
@@ -524,26 +526,26 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
           <span className="text-sm text-[#333] leading-snug">Chci upozornění na email (pro informování o sezónním výherci)</span>
         </label>
         {form.wantsEmail && <input className={inputCls + " mb-4"} placeholder="tvůj@email.cz" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />}
-        <button 
-  type="button" 
-  onClick={handleSubmit} 
-  style={{ backgroundColor: themeColor }}
-  className="w-full py-3 rounded-2xl font-black text-white text-base hover:opacity-95 transition-opacity shadow-md"
->
-  POTVRDIT
-</button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className={`w-full py-3 rounded-2xl font-black text-white text-base hover:opacity-95 transition-opacity shadow-md ${accentBg}`}
+        >
+          POTVRDIT
+        </button>
       </div>
 
       {/* Přepínač Sezónní / Historický */}
       <div className="flex rounded-2xl overflow-hidden mb-4 bg-white border border-gray-200" style={cardShadow}>
         {[["sezona", "Sezónní"], ["vsechny", "Historický"]].map(([val, lbl]) => (
           <button
-          key={val}
-          type="button"
-          onClick={() => setView(val)}
-          className="flex-1 py-3 text-sm font-black transition-colors"
-          style={view === val ? { background: themeColor, color: "#fff" } : { color: "#9ca3af", background: C.card }}
-        >
+            key={val}
+            type="button"
+            onClick={() => setView(val)}
+            className={`flex-1 py-3 text-sm font-black transition-colors ${
+              view === val ? `${accentBg} text-white` : "text-gray-400 bg-white"
+            }`}
+          >
             {lbl}
           </button>
         ))}
@@ -693,19 +695,19 @@ export default function App() {
             onClick={handleLogoClick}
           >
             <img
-              src="/liska.png"
+              src="/testerlogo.png"
               alt="Minigolf Liška"
               className="w-24 h-24 object-contain"
               draggable={false}
             />
             <img
-              src="/logo-text.png"
+              src="/testernazev.png"
               alt="Minigolf Liška"
               className="h-12 w-auto object-contain mb-2"
               draggable={false}
             />
           </div>
-          <p className="text-sm font-semibold text-[#4A4A4A] mt-1">Žebříček · Lužánky</p>
+          <p className="text-sm font-semibold text-[#4A4A4A] mt-1">Žebříček · Ukázka</p>
         </header>
 
         {/* Banner aktivní sezóny */}
@@ -727,8 +729,11 @@ export default function App() {
               key={t.category}
               type="button"
               onClick={() => setCatTab(i)}
-              className="flex-1 py-3.5 text-sm font-black transition-colors"
-              style={catTab === i ? { background: themeColor, color: "#fff" } : { color: "#9ca3af", background: C.card }}
+              className={`flex-1 py-3.5 text-sm font-black transition-colors ${
+                catTab === i
+                  ? `${t.category === "do15" ? "bg-green-600" : "bg-blue-600"} text-white`
+                  : "text-gray-400 bg-white"
+              }`}
             >
               {t.label}
             </button>
