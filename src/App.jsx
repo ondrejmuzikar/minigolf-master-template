@@ -136,6 +136,7 @@ function ConfirmDialog({ icon = "🦊", message, yesLabel, noLabel = "Zrušit", 
   );
 }
 
+// ----------------- PIN MODAL úprava pouze zelený okraj na tlačítku "Vstoupit"
 function PinModal({ onSuccess, onCancel, currentPin }) {
   const [v, setV] = useState("");
   const [err, setErr] = useState(false);
@@ -170,7 +171,13 @@ function PinModal({ onSuccess, onCancel, currentPin }) {
           <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">
             Zrušit
           </button>
-          <button type="button" onClick={check} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#E8621A]">
+          {/* ZMĚNA: border z oranžové na zelenou */}
+          <button
+            type="button"
+            onClick={check}
+            className="flex-1 py-3 rounded-xl font-bold text-white border-2 border-green-600 bg-green-600 hover:opacity-95"
+            style={{ borderColor: "#16a34a", backgroundColor: "#16a34a" }}
+          >
             Vstoupit
           </button>
         </div>
@@ -338,6 +345,7 @@ function PlayerCard({ player, rank, isAdmin, onDelete, onEdit, category }) {
   );
 }
 
+// --------- REWRITE SCORESBOARD BUTTON OBNOVIT (ZELENÁ/MODRÁ DYNAMICKY + SVG)
 function ScoresBoard({ category, isAdmin, season, themeColor }) {
   const [seasonPlayers, setSeasonPlayers] = useState([]);
   const [historyPlayers, setHistoryPlayers] = useState([]);
@@ -352,6 +360,11 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
   const [refreshing, setRefreshing] = useState(false);
   const isDo15 = category === "do15";
   const accentBg = isDo15 ? "bg-green-600" : "bg-blue-600";
+  const accentText = isDo15 ? "text-green-600" : "text-blue-600";
+  const accentBorder = isDo15 ? "border-green-600" : "border-blue-600";
+  const accentSvgStroke = isDo15 ? "#16a34a" : "#2563eb";
+  const accentBorderCss = isDo15 ? "#16a34a" : "#2563eb";
+  const accentTextCss = isDo15 ? "#16a34a" : "#2563eb";
 
   const mapList = (raw) => (Array.isArray(raw) ? raw : []).map(rowToView).filter(Boolean);
 
@@ -490,17 +503,52 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div className="flex items-center gap-2 min-h-[40px]">
           <h2 className="text-lg font-black text-[#333] tracking-tight">Žebříček</h2>
-          {isAdmin && <span className="text-[10px] font-black uppercase tracking-wider text-white px-2 py-1 rounded-full" style={{ backgroundColor: themeColor }}>Admin</span>}
+          {isAdmin && (
+            <span
+              className="text-[10px] font-black uppercase tracking-wider text-white px-2 py-1 rounded-full bg-green-600"
+            >
+              Admin
+            </span>
+          )}
         </div>
         <button
-  type="button"
-  onClick={() => { setRefreshing(true); load(); }}
-  disabled={refreshing}
-  style={{ borderColor: themeColor, color: themeColor }}
-  className="text-xs font-bold px-3 py-2 rounded-xl border-2 transition-colors disabled:opacity-50"
->
-  {refreshing ? "…" : "↻ Obnovit"}
-</button>
+          type="button"
+          onClick={() => { setRefreshing(true); load(); }}
+          disabled={refreshing}
+          style={{
+            borderColor: accentBorderCss,
+            color: accentTextCss,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem"
+          }}
+          className={`text-xs font-bold px-3 py-2 rounded-xl border-2 transition-colors disabled:opacity-50 ${accentText} ${accentBorder} bg-white`}
+        >
+          {refreshing ? (
+            "…"
+          ) : (
+            <>
+              {/* SVG šipka pro obnovit! */}
+              <svg
+                width="1em"
+                height="1em"
+                viewBox="0 0 20 20"
+                fill="none"
+                style={{ display: "inline", verticalAlign: "middle" }}
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3.75 7.5A6.25 6.25 0 1 1 5.723 15M3.75 7.5V12.5M3.75 7.5H8.75"
+                  stroke={accentSvgStroke}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Obnovit
+            </>
+          )}
+        </button>
       </div>
 
       {loadError && <div className="mb-5 rounded-2xl px-4 py-2.5 text-sm font-semibold bg-red-50 border border-red-200 text-red-800">{loadError}</div>}
@@ -669,7 +717,11 @@ export default function App() {
 
   const days = season?.endDate ? daysUntil(season.endDate) : null;
   const tab = TABS[catTab];
-  const themeColor = catTab === 1 ? "#555555" : C.primary;
+  const themeColor = catTab === 1 ? "#2563eb" : "#16a34a";
+  const adminAccentBtn = "bg-blue-600";
+  const adminSeasonActionsColor = "bg-green-600";
+  const adminRevealBorder = "border-green-600/50";
+  const adminRevealText = "text-green-600";
 
   return (
     <div className="min-h-screen flex justify-center" style={{ background: C.bg }}>
@@ -755,25 +807,42 @@ export default function App() {
             {season && !season.active && (
               <div className="mb-3 rounded-xl px-3 py-2 text-xs font-semibold bg-gray-50 text-[#4A4A4A] border border-gray-200">Žádná aktivní sezóna — zahaj novou se sekcí „Správa sezóny" níže.</div>
             )}
-            <button type="button" onClick={() => setShowChangePin(true)} className="text-xs font-bold px-3 py-2 rounded-xl bg-[#4A4A4A] text-white hover:opacity-95 mb-4 w-full sm:w-auto">
+            {/* Změna PIN - MODRÁ */}
+            <button
+              type="button"
+              onClick={() => setShowChangePin(true)}
+              className="text-xs font-bold px-3 py-2 rounded-xl bg-blue-600 text-white hover:opacity-95 mb-4 w-full sm:w-auto"
+            >
               Změnit PIN
             </button>
+            {/* Správa sezóny: ZELENÁ vizuální */}
             <div
               role="button"
               tabIndex={0}
-              className="mt-2 rounded-xl border-2 border-dashed border-[#E8621A]/50 bg-[#FFF5ED] px-3 py-3 text-center select-none cursor-pointer text-xs font-bold text-[#E8621A] active:bg-[#ffe4d4]"
+              className="mt-2 rounded-xl border-2 border-dashed border-green-600/50 bg-green-600/10 px-3 py-3 text-center select-none cursor-pointer text-xs font-bold text-green-600 active:bg-green-200"
               onPointerDown={startSeasonRevealHold}
               onPointerUp={cancelSeasonRevealHold}
               onPointerLeave={cancelSeasonRevealHold}
               onPointerCancel={cancelSeasonRevealHold}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startSeasonRevealHold(); } }}
               onKeyUp={cancelSeasonRevealHold}
+              style={{
+                // fallback for /50 opacity (if not supported)
+                borderColor: "#16a34a80",
+                backgroundColor: "rgba(22,163,74,0.08)",
+                color: "#16a34a"
+              }}
             >
               Správa sezóny — <span className="underline">podrž cca 1,5 s</span> pro zobrazení akcí
             </div>
             {seasonActionsRevealed && (
               <div className="mt-4 flex flex-wrap gap-2">
-                <button type="button" onClick={() => setShowNewSeason(true)} className="text-xs font-bold px-3 py-2 rounded-xl bg-[#E8621A] text-white hover:opacity-95">
+                {/* Zahájit novou sezónu - MODRÁ větší CTA */}
+                <button
+                  type="button"
+                  onClick={() => setShowNewSeason(true)}
+                  className="text-xs font-bold px-3 py-2 rounded-xl bg-blue-600 text-white hover:opacity-95"
+                >
                   Zahájit novou sezónu
                 </button>
                 {season?.active && (
