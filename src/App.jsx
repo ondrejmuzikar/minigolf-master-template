@@ -101,9 +101,23 @@ const sSet = async (key, val) => {
   } catch { /* ignore */ }
 };
 
-const inputCls =
-  "w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none focus:border-[#E8621A] transition-colors";
 const cardShadow = { boxShadow: "0 2px 12px 0 rgba(0,0,0,0.06)" };
+
+// Dynamicky sestaví třídu pro klient input podle kategorie
+function getClientInputCls(isDo15) {
+  // Třídy: border + ring při focus + efekt
+  const focus = isDo15
+    ? "focus:border-green-600 focus:ring-2 focus:ring-green-200"
+    : "focus:border-blue-600 focus:ring-2 focus:ring-blue-200";
+  return `w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none transition-colors ${focus}`;
+}
+
+// Dynamicky sestaví input třídu pro admin/pin modal
+const adminInputCls =
+  "w-full text-center text-xl font-black tracking-widest border-2 rounded-2xl py-3 mb-4 border-green-600 focus:border-green-600 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors";
+
+// Dynamicky sestaví základní input pro admin modaly (změna pin, úprava hráče atd.)
+// V těchto modalech ponecháváme inputCls (šedá) i focus, kromě PinModal kde nutíme zelenou.
 
 function Overlay({ children }) {
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">{children}</div>;
@@ -136,7 +150,7 @@ function ConfirmDialog({ icon = "🦊", message, yesLabel, noLabel = "Zrušit", 
   );
 }
 
-// ----------------- PIN MODAL úprava pouze zelený okraj na tlačítku "Vstoupit"
+// PIN MODAL - zelený border na buttonu a admin focus styl na input
 function PinModal({ onSuccess, onCancel, currentPin }) {
   const [v, setV] = useState("");
   const [err, setErr] = useState(false);
@@ -159,19 +173,20 @@ function PinModal({ onSuccess, onCancel, currentPin }) {
           inputMode="numeric"
           maxLength={10}
           autoFocus
-          className={`w-full text-center text-xl font-black tracking-widest border-2 rounded-2xl py-3 mb-4 focus:outline-none ${
-            err ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-[#E8621A]"
-          }`}
+          className={adminInputCls + (err ? " border-red-400 bg-red-50" : "")}
           value={v}
           onChange={(e) => setV(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && check()}
         />
         {err && <p className="text-red-500 text-sm mb-3 font-semibold">Špatný PIN</p>}
         <div className="flex gap-2">
-          <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100"
+          >
             Zrušit
           </button>
-          {/* ZMĚNA: border z oranžové na zelenou */}
           <button
             type="button"
             onClick={check}
@@ -186,6 +201,7 @@ function PinModal({ onSuccess, onCancel, currentPin }) {
   );
 }
 
+// --- ostatní modaly ponechávají šedý focus (change pin, edit player, new season...)
 function ChangePinModal({ currentPin, onSave, onCancel }) {
   const [f, setF] = useState({ old: "", n1: "", n2: "" });
   const [err, setErr] = useState("");
@@ -202,7 +218,7 @@ function ChangePinModal({ currentPin, onSave, onCancel }) {
         {[["Starý PIN", "old"], ["Nový PIN", "n1"], ["Nový PIN znovu", "n2"]].map(([l, k]) => (
           <div key={k} className="mb-4">
             <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">{l}</label>
-            <input type="password" inputMode="numeric" className={inputCls + " mt-1"} value={f[k]} onChange={(e) => setF((p) => ({ ...p, [k]: e.target.value }))} />
+            <input type="password" inputMode="numeric" className={"w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 transition-colors mt-1"} value={f[k]} onChange={(e) => setF((p) => ({ ...p, [k]: e.target.value }))} />
           </div>
         ))}
         {err && <p className="text-red-500 text-sm mb-2 font-semibold">{err}</p>}
@@ -228,11 +244,11 @@ function NewSeasonModal({ onSave, onCancel }) {
         <h2 className="font-black text-xl mb-6 text-center text-[#333]">🏁 Zahájit novou sezónu</h2>
         <div className="mb-4">
           <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">Název sezóny</label>
-          <input className={inputCls + " mt-1"} placeholder="např. Jaro 2026" value={label} onChange={(e) => setLabel(e.target.value)} />
+          <input className={"w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 transition-colors mt-1"} placeholder="např. Jaro 2026" value={label} onChange={(e) => setLabel(e.target.value)} />
         </div>
         <div className="mb-5">
           <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">Konec sezóny</label>
-          <input type="date" className={inputCls + " mt-1"} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <input type="date" className={"w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 transition-colors mt-1"} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </div>
         <p className="text-xs text-[#4A4A4A] mb-5">Sezónní výsledky se zapíší do historického žebříčku. Po ukončení sezóny dostanou e-mailem zprávu hráči s e-mailem a odběrem upozornění.</p>
         <div className="flex gap-2">
@@ -270,7 +286,7 @@ function EditPlayerModal({ player, onSave, onCancel }) {
         ].map(([l, k, t, ex]) => (
           <div key={k} className="mb-4">
             <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">{l}</label>
-            <input type={t} {...ex} className={`${inputCls} mt-1 focus:border-[#E8621A]`} value={f[k]} onChange={(e) => setF((p) => ({ ...p, [k]: e.target.value }))} />
+            <input type={t} {...ex} className={`w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 transition-colors mt-1`} value={f[k]} onChange={(e) => setF((p) => ({ ...p, [k]: e.target.value }))} />
           </div>
         ))}
         <div className="flex gap-2 mt-4">
@@ -345,7 +361,7 @@ function PlayerCard({ player, rank, isAdmin, onDelete, onEdit, category }) {
   );
 }
 
-// --------- REWRITE SCORESBOARD BUTTON OBNOVIT (ZELENÁ/MODRÁ DYNAMICKY + SVG)
+// ScoresBoard vkládá dynamický inputCls pro klientské inputy
 function ScoresBoard({ category, isAdmin, season, themeColor }) {
   const [seasonPlayers, setSeasonPlayers] = useState([]);
   const [historyPlayers, setHistoryPlayers] = useState([]);
@@ -365,6 +381,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
   const accentSvgStroke = isDo15 ? "#16a34a" : "#2563eb";
   const accentBorderCss = isDo15 ? "#16a34a" : "#2563eb";
   const accentTextCss = isDo15 ? "#16a34a" : "#2563eb";
+  const clientInputCls = getClientInputCls(isDo15);
 
   const mapList = (raw) => (Array.isArray(raw) ? raw : []).map(rowToView).filter(Boolean);
 
@@ -528,7 +545,6 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
             "…"
           ) : (
             <>
-              {/* SVG šipka pro obnovit! */}
               <svg
                 width="1em"
                 height="1em"
@@ -562,18 +578,18 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
       <div className="bg-white rounded-3xl p-4 mb-5 border border-gray-200" style={cardShadow}>
         <div className="text-xs font-bold text-[#4A4A4A] mb-4 uppercase tracking-widest">Přidat / aktualizovat výkon</div>
         <div className="flex flex-col gap-3 mb-3">
-          <input className={inputCls} placeholder="Přezdívka *" value={form.nick} onChange={(e) => setForm((f) => ({ ...f, nick: e.target.value }))} />
+          <input className={clientInputCls} placeholder="Přezdívka *" value={form.nick} onChange={(e) => setForm((f) => ({ ...f, nick: e.target.value }))} />
           <div className="grid grid-cols-2 gap-3">
-            <input className={inputCls} placeholder="Skóre (ran) *" type="number" min="0" inputMode="numeric" value={form.score} onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))} />
-            <input className={inputCls} placeholder="Kolo č." type="number" min="1" inputMode="numeric" value={form.round} onChange={(e) => setForm((f) => ({ ...f, round: e.target.value }))} />
+            <input className={clientInputCls} placeholder="Skóre (ran) *" type="number" min="0" inputMode="numeric" value={form.score} onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))} />
+            <input className={clientInputCls} placeholder="Kolo č." type="number" min="1" inputMode="numeric" value={form.round} onChange={(e) => setForm((f) => ({ ...f, round: e.target.value }))} />
           </div>
-          <input className={inputCls} placeholder="Poznámka (volitelná)" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} />
+          <input className={clientInputCls} placeholder="Poznámka (volitelná)" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} />
         </div>
         <label className="flex items-start gap-2 cursor-pointer mb-3">
           <input type="checkbox" className="w-4 h-4 mt-1 shrink-0" style={{ accentColor: themeColor }} checked={form.wantsEmail} onChange={(e) => setForm((f) => ({ ...f, wantsEmail: e.target.checked }))} />
           <span className="text-sm text-[#333] leading-snug">Chci upozornění na email (pro informování o sezónním výherci)</span>
         </label>
-        {form.wantsEmail && <input className={inputCls + " mb-4"} placeholder="tvůj@email.cz" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />}
+        {form.wantsEmail && <input className={clientInputCls + " mb-4"} placeholder="tvůj@email.cz" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />}
         <button
           type="button"
           onClick={handleSubmit}
@@ -717,11 +733,8 @@ export default function App() {
 
   const days = season?.endDate ? daysUntil(season.endDate) : null;
   const tab = TABS[catTab];
+  // Nové barvy pro Admin (Zmena PIN = modra, sprava sezony = zelena, ... )
   const themeColor = catTab === 1 ? "#2563eb" : "#16a34a";
-  const adminAccentBtn = "bg-blue-600";
-  const adminSeasonActionsColor = "bg-green-600";
-  const adminRevealBorder = "border-green-600/50";
-  const adminRevealText = "text-green-600";
 
   return (
     <div className="min-h-screen flex justify-center" style={{ background: C.bg }}>
@@ -827,7 +840,6 @@ export default function App() {
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startSeasonRevealHold(); } }}
               onKeyUp={cancelSeasonRevealHold}
               style={{
-                // fallback for /50 opacity (if not supported)
                 borderColor: "#16a34a80",
                 backgroundColor: "rgba(22,163,74,0.08)",
                 color: "#16a34a"
