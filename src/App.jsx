@@ -452,7 +452,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
           await api.postSendEmail({
             to: email,
             nick,
-            subject: "Minigolf Liška — potvrzení zápisu do žebříčku",
+            subject: "Minigolf Ukázka — potvrzení zápisu do žebříčku",
             message: `Potvrzujeme, že tvůj výkon (${score} ran) byl úspěšně zapsán do žebříčku v kategorii ${catLabel}.`,
           });
         } catch {}

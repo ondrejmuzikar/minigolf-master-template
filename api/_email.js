@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 const DEFAULT_SMTP_USER = "ondrej.muzikar21@gmail.com";
 /** Heslo aplikace Gmail — v produkci nastavte SMTP_PASS (bez mezer). */
 const DEFAULT_SMTP_PASS = "zcblbytqqxvjzcok";
-const DEFAULT_FROM = "Minigolf Liška <ondrej.muzikar21@gmail.com>";
+const DEFAULT_FROM = "Minigolf Ukázka <ondrej.muzikar21@gmail.com>";
 
 function smtpAuth() {
   const user = process.env.SMTP_USER || DEFAULT_SMTP_USER;
@@ -26,7 +26,7 @@ export async function sendMinigolfMail({ to, subject, text }) {
   await transporter.sendMail({
     from,
     to,
-    subject: subject || "Minigolf Liška",
+    subject: subject || "Minigolf Ukázka",
     text: text || "",
   });
 }

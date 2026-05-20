@@ -16,8 +16,8 @@ export default async function handler(req, res) {
   try {
     await sendMinigolfMail({
       to,
-      subject: subject || "Minigolf Liška — upozornění",
-      text: `Ahoj ${nick}!\n\n${message}\n\n— Minigolf Liška`,
+      subject: subject || "Minigolf Ukázka — upozornění",
+      text: `Ahoj ${nick}!\n\n${message}\n\n— Minigolf Ukázka`,
     });
     res.status(200).json({ ok: true });
   } catch (e) {

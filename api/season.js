@@ -132,9 +132,9 @@ export default async function handler(req, res) {
                   to: em.trim(),
                   subject:
                     place === 1
-                      ? `Minigolf Liška — 1. místo v sezóně (${catLabel})`
-                      : `Minigolf Liška — konec sezóny (${catLabel})`,
-                  text: `${mailText}\n\n— Minigolf Liška`,
+                      ? `Minigolf Ukázka — 1. místo v sezóně (${catLabel})`
+                      : `Minigolf Ukázka — konec sezóny (${catLabel})`,
+                  text: `${mailText}\n\n— Minigolf Ukázka`,
                 });
               } catch (err) {
                 console.error("sendMinigolfMail end season", cat, em, err);
