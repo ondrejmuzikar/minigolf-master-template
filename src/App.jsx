@@ -123,24 +123,94 @@ function Overlay({ children }) {
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">{children}</div>;
 }
 
-function ConfirmDialog({ icon = "🦊", message, yesLabel, noLabel = "Zrušit", danger, onYes, onNo }) {
+// === MODIFIED ConfirmDialog WITH CATEGORY SUPPORT ===
+/**
+ * ConfirmDialog for everything except duplicate nick modal remains the same.
+ * But if prop 'category' is passed, it will use the new dynamic design (logo, colors) per instructions.
+ */
+function ConfirmDialog({
+  icon = "🦊",
+  message,
+  yesLabel,
+  noLabel = "Zrušit",
+  danger,
+  onYes,
+  onNo,
+  category // pass 'do15' or 'od15' for themed design
+}) {
+  // Decide colors based on category for duplicate nickname modal prompt
+  const isDupNickDialog = !!category;
+  const isDo15 = category === "do15";
+  const accentColor = isDo15 ? "green" : "blue";
+  const accentBg = isDo15 ? "bg-green-600" : "bg-blue-600";
+  const accentText = isDo15 ? "text-green-600" : "text-blue-600";
+  const accentBorder =
+    isDo15 ? "border-green-600" : "border-blue-600";
+  const accentBorderCss = isDo15 ? "#16a34a" : "#2563eb";
+  const accentBgHover =
+    isDo15
+      ? "hover:bg-green-700"
+      : "hover:bg-blue-700";
+  // Only dynamic border (4px) if nick modal (per design), fallback for others
+  const modalBorderCls = isDupNickDialog
+    ? (isDo15
+        ? "border-4 border-green-600"
+        : "border-4 border-blue-600")
+    : (danger ? "border-4 border-red-500" : "border-4 border-gray-300");
   return (
     <Overlay>
       <div
-        className={`bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center border-4 ${
-          danger ? "border-red-500" : "border-gray-300"
-        }`}
+        className={`bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center ${modalBorderCls}`}
       >
-        <div className="text-4xl mb-4">{icon}</div>
+        {isDupNickDialog ? (
+          // New logo as image for duplicate nickname modal, instead of icon
+          <div className="flex justify-center mb-4">
+            <img
+              src="/testerlogo.png"
+              alt="Logo"
+              className="w-16 h-16 object-contain"
+              style={{
+                display: 'inline-block'
+              }}
+              draggable={false}
+            />
+          </div>
+        ) : (
+          <div className="text-4xl mb-4">{icon}</div>
+        )}
         <p className="text-[#333] font-semibold text-base mb-6">{message}</p>
         <div className="flex gap-3 justify-center">
-          <button type="button" onClick={onNo} className="px-6 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">
+          {/* Secondary action: border + text in accent, transparent bg */}
+          <button
+            type="button"
+            onClick={onNo}
+            className={
+              isDupNickDialog
+                ? `px-6 py-3 rounded-xl font-bold border-2 ${accentBorder} ${accentText} bg-white hover:bg-${accentColor}-50 transition`
+                : "px-6 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100"
+            }
+            style={
+              isDupNickDialog
+                ? { borderColor: accentBorderCss, color: accentBorderCss, backgroundColor: "#fff" }
+                : undefined
+            }
+          >
             {noLabel}
           </button>
+          {/* Primary action: full bg in accent */}
           <button
             type="button"
             onClick={onYes}
-            className={`px-6 py-3 rounded-xl font-bold text-white ${danger ? "bg-red-500" : "bg-gray-700"}`}
+            className={
+              isDupNickDialog
+                ? `px-6 py-3 rounded-xl font-bold text-white ${accentBg} ${accentBgHover} transition`
+                : `px-6 py-3 rounded-xl font-bold text-white ${danger ? "bg-red-500" : "bg-gray-700"}`
+            }
+            style={
+              isDupNickDialog
+                ? { backgroundColor: accentBorderCss, borderColor: accentBorderCss }
+                : undefined
+            }
           >
             {yesLabel}
           </button>
@@ -477,6 +547,8 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
         message: `Přezdívka „${nick}" už existuje. Jsi to ty?`,
         onYes: () => { setDialog(null); doAdd(nick); },
         onNo: () => { setDialog(null); flash$("❗ Zvol jinou přezdívku.", false); setForm((f) => ({ ...f, nick: "" })); },
+        // Pass category for themed ConfirmDialog!
+        category: category,
       });
     } else {
       doAdd(nick);
@@ -513,6 +585,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
 
   return (
     <div className="w-full">
+      {/* Pass category ONLY for duplicate nick dialog (for correct design). */}
       {dialog && <ConfirmDialog {...dialog} yesLabel="Ano, jsem to já" noLabel="Ne, jiný hráč" onNo={dialog.onNo} />}
       {delTarget && (
         <ConfirmDialog
