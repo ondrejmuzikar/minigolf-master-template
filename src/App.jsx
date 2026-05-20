@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as api from "./apiClient.js";
 
 const SK = { PIN: "mg_pin" };
-const DEFAULT_PIN = "357753";
+const DEFAULT_PIN = "123456";
 
 const C = {
   primary: "#E8621A",
