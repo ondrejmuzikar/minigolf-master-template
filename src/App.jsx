@@ -59,7 +59,6 @@ const daysUntil = (isoDate) => {
   return Math.ceil(diff / 86400000);
 };
 
-/** Část „X den / dny / dní“ (bez „do konce“) — pro box pod přepínačem. */
 function czechDaysCountPhrase(count) {
   const n = Math.floor(Number(count));
   if (!Number.isFinite(n) || n < 0) return "";
@@ -69,7 +68,6 @@ function czechDaysCountPhrase(count) {
   return `${n} dní`;
 }
 
-/** Banner „Aktivní sezóna“: 1 den / 2–4 dny / 5+ dní + „do konce“. */
 function getCzechDays(count) {
   const n = Math.floor(Number(count));
   if (!Number.isFinite(n) || n < 0) return "";
@@ -83,7 +81,7 @@ const sGet = async (key) => {
   try {
     const r = await window.storage.get(key);
     if (r) return JSON.parse(r.value);
-  } catch { /* ignore */ }
+  } catch {}
   try {
     const v = localStorage.getItem(key);
     return v ? JSON.parse(v) : null;
@@ -95,29 +93,31 @@ const sSet = async (key, val) => {
   const s = JSON.stringify(val);
   try {
     await window.storage.set(key, s);
-  } catch { /* ignore */ }
+  } catch {}
   try {
     localStorage.setItem(key, s);
-  } catch { /* ignore */ }
+  } catch {}
 };
 
 const cardShadow = { boxShadow: "0 2px 12px 0 rgba(0,0,0,0.06)" };
 
-// Dynamicky sestaví třídu pro klient input podle kategorie
+// Klientské inputy – focus barva podle kategorie
 function getClientInputCls(isDo15) {
-  // Třídy: border + ring při focus + efekt
   const focus = isDo15
     ? "focus:border-green-600 focus:ring-2 focus:ring-green-200"
     : "focus:border-blue-600 focus:ring-2 focus:ring-blue-200";
   return `w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none transition-colors ${focus}`;
 }
 
-// Dynamicky sestaví input třídu pro admin/pin modal
 const adminInputCls =
   "w-full text-center text-xl font-black tracking-widest border-2 rounded-2xl py-3 mb-4 border-green-600 focus:border-green-600 focus:ring-2 focus:ring-green-200 focus:outline-none transition-colors";
 
-// Dynamicky sestaví základní input pro admin modaly (změna pin, úprava hráče atd.)
-// V těchto modalech ponecháváme inputCls (šedá) i focus, kromě PinModal kde nutíme zelenou.
+// Dynamický styl okraje modálu podle kategorie
+function getModalBorderCls(isDo15) {
+  return isDo15
+    ? "border-4 border-green-600"
+    : "border-4 border-blue-600";
+}
 
 function Overlay({ children }) {
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">{children}</div>;
@@ -128,7 +128,7 @@ function ConfirmDialog({ icon = "🦊", message, yesLabel, noLabel = "Zrušit", 
     <Overlay>
       <div
         className={`bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center border-4 ${
-          danger ? "border-red-500" : "border-[#E8621A]"
+          danger ? "border-red-500" : "border-gray-300"
         }`}
       >
         <div className="text-4xl mb-4">{icon}</div>
@@ -140,7 +140,7 @@ function ConfirmDialog({ icon = "🦊", message, yesLabel, noLabel = "Zrušit", 
           <button
             type="button"
             onClick={onYes}
-            className={`px-6 py-3 rounded-xl font-bold text-white ${danger ? "bg-red-500" : "bg-[#E8621A]"}`}
+            className={`px-6 py-3 rounded-xl font-bold text-white ${danger ? "bg-red-500" : "bg-gray-700"}`}
           >
             {yesLabel}
           </button>
@@ -150,8 +150,8 @@ function ConfirmDialog({ icon = "🦊", message, yesLabel, noLabel = "Zrušit", 
   );
 }
 
-// PIN MODAL - zelený border na buttonu a admin focus styl na input
-function PinModal({ onSuccess, onCancel, currentPin }) {
+// PIN MODAL – border ZELENÝ, input zelený, button zelený outline i fill
+function PinModal({ onSuccess, onCancel, currentPin, isDo15 }) {
   const [v, setV] = useState("");
   const [err, setErr] = useState(false);
   const check = () => {
@@ -164,7 +164,12 @@ function PinModal({ onSuccess, onCancel, currentPin }) {
   };
   return (
     <Overlay>
-      <div className={`bg-white rounded-3xl shadow-2xl p-8 max-w-xs w-full mx-4 text-center border-4 ${err ? "border-red-500" : "border-[#E8621A]"}`}>
+      <div
+        className={
+          "bg-white rounded-3xl shadow-2xl p-8 max-w-xs w-full mx-4 text-center " +
+          (err ? "border-4 border-red-500" : getModalBorderCls(isDo15))
+        }
+      >
         <div className="text-4xl mb-3">🔐</div>
         <h2 className="font-black text-xl mb-1 text-[#333]">Admin přístup</h2>
         <p className="text-[#4A4A4A] text-sm mb-5">Zadej PIN</p>
@@ -190,7 +195,7 @@ function PinModal({ onSuccess, onCancel, currentPin }) {
           <button
             type="button"
             onClick={check}
-            className="flex-1 py-3 rounded-xl font-bold text-white border-2 border-green-600 bg-green-600 hover:opacity-95"
+            className="flex-1 py-3 rounded-xl font-bold text-white border-2 border-green-600 bg-green-600 hover:bg-green-700"
             style={{ borderColor: "#16a34a", backgroundColor: "#16a34a" }}
           >
             Vstoupit
@@ -201,7 +206,7 @@ function PinModal({ onSuccess, onCancel, currentPin }) {
   );
 }
 
-// --- ostatní modaly ponechávají šedý focus (change pin, edit player, new season...)
+// ChangePinModal – border neutral (šedá), focus neutral (šedá)
 function ChangePinModal({ currentPin, onSave, onCancel }) {
   const [f, setF] = useState({ old: "", n1: "", n2: "" });
   const [err, setErr] = useState("");
@@ -213,7 +218,7 @@ function ChangePinModal({ currentPin, onSave, onCancel }) {
   };
   return (
     <Overlay>
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-xs w-full mx-4 border-4 border-[#4A4A4A]">
+      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-xs w-full mx-4 border-4 border-gray-300">
         <h2 className="font-black text-xl mb-6 text-center text-[#333]">Změnit PIN</h2>
         {[["Starý PIN", "old"], ["Nový PIN", "n1"], ["Nový PIN znovu", "n2"]].map(([l, k]) => (
           <div key={k} className="mb-4">
@@ -231,36 +236,41 @@ function ChangePinModal({ currentPin, onSave, onCancel }) {
   );
 }
 
-function NewSeasonModal({ onSave, onCancel }) {
+// NewSeasonModal – border podle kategorie, vstup focus podle kategorie, tlačítko "Zahájit" modré (dospělí i do15)
+function NewSeasonModal({ onSave, onCancel, isDo15 }) {
   const [label, setLabel] = useState("");
   const [endDate, setEndDate] = useState("");
   const go = () => {
     if (!label.trim() || !endDate) return;
     onSave({ label: label.trim(), endDate, active: true });
   };
+  // Tady při Zahájit vždy modrá bez ohledu na kategorii
+  const borderCls = getModalBorderCls(isDo15);
+  const inputCls = getClientInputCls(isDo15);
   return (
     <Overlay>
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-xs w-full mx-4 border-4 border-[#E8621A]">
+      <div className={`bg-white rounded-3xl shadow-2xl p-8 max-w-xs w-full mx-4 ${borderCls}`}>
         <h2 className="font-black text-xl mb-6 text-center text-[#333]">🏁 Zahájit novou sezónu</h2>
         <div className="mb-4">
           <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">Název sezóny</label>
-          <input className={"w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 transition-colors mt-1"} placeholder="např. Jaro 2026" value={label} onChange={(e) => setLabel(e.target.value)} />
+          <input className={inputCls + " mt-1"} placeholder="např. Jaro 2026" value={label} onChange={(e) => setLabel(e.target.value)} />
         </div>
         <div className="mb-5">
           <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">Konec sezóny</label>
-          <input type="date" className={"w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 transition-colors mt-1"} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <input type="date" className={inputCls + " mt-1"} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </div>
         <p className="text-xs text-[#4A4A4A] mb-5">Sezónní výsledky se zapíší do historického žebříčku. Po ukončení sezóny dostanou e-mailem zprávu hráči s e-mailem a odběrem upozornění.</p>
         <div className="flex gap-2">
           <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">Zrušit</button>
-          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#E8621A]">Zahájit</button>
+          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700">Zahájit</button>
         </div>
       </div>
     </Overlay>
   );
 }
 
-function EditPlayerModal({ player, onSave, onCancel }) {
+// EditPlayerModal – border podle kategorie, focus input podle kategorie, uložit tlačítko DYNAMICKÉ
+function EditPlayerModal({ player, onSave, onCancel, isDo15 }) {
   const [f, setF] = useState({
     nick: player.nick,
     score: String(player.score),
@@ -273,9 +283,12 @@ function EditPlayerModal({ player, onSave, onCancel }) {
     if (!f.nick.trim() || Number.isNaN(s)) return;
     onSave({ ...player, nick: f.nick.trim(), score: s, round: f.round || "—", note: f.note.trim(), email: f.email.trim() });
   };
+  const borderCls = getModalBorderCls(isDo15);
+  const inputCls = getClientInputCls(isDo15);
+  const saveBg = isDo15 ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700";
   return (
     <Overlay>
-      <div className="bg-white rounded-3xl shadow-2xl p-5 max-w-xs w-full mx-4 border-4 border-[#E8621A]">
+      <div className={`bg-white rounded-3xl shadow-2xl p-5 max-w-xs w-full mx-4 ${borderCls}`}>
         <h2 className="font-black text-xl mb-6 text-center text-[#333]">✏️ Upravit hráče</h2>
         {[
           ["Přezdívka", "nick", "text", {}],
@@ -286,19 +299,18 @@ function EditPlayerModal({ player, onSave, onCancel }) {
         ].map(([l, k, t, ex]) => (
           <div key={k} className="mb-4">
             <label className="text-xs font-bold text-[#4A4A4A] uppercase tracking-wider">{l}</label>
-            <input type={t} {...ex} className={`w-full rounded-2xl border-2 border-gray-200 px-4 py-3 bg-[#FAFAFA] text-base font-semibold text-[#333] placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200 transition-colors mt-1`} value={f[k]} onChange={(e) => setF((p) => ({ ...p, [k]: e.target.value }))} />
+            <input type={t} {...ex} className={inputCls + " mt-1"} value={f[k]} onChange={(e) => setF((p) => ({ ...p, [k]: e.target.value }))} />
           </div>
         ))}
         <div className="flex gap-2 mt-4">
           <button type="button" onClick={onCancel} className="flex-1 py-3 rounded-xl font-bold text-[#4A4A4A] bg-gray-100">Zrušit</button>
-          <button type="button" onClick={go} className="flex-1 py-3 rounded-xl font-bold text-white bg-[#E8621A]">Uložit</button>
+          <button type="button" onClick={go} className={`flex-1 py-3 rounded-xl font-bold text-white ${saveBg}`}>Uložit</button>
         </div>
       </div>
     </Overlay>
   );
 }
 
-// Barvy karet: první tři místa vždy zlato/stříbro/bronz (medaile); šedý motiv jen od 4. místa u „Od 15 let“.
 function rankCardStyle(rank, category) {
   if (rank === 0) return { backgroundColor: C.gold };
   if (rank === 1) return { backgroundColor: C.silver };
@@ -361,7 +373,6 @@ function PlayerCard({ player, rank, isAdmin, onDelete, onEdit, category }) {
   );
 }
 
-// ScoresBoard vkládá dynamický inputCls pro klientské inputy
 function ScoresBoard({ category, isAdmin, season, themeColor }) {
   const [seasonPlayers, setSeasonPlayers] = useState([]);
   const [historyPlayers, setHistoryPlayers] = useState([]);
@@ -444,9 +455,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
             subject: "Minigolf Liška — potvrzení zápisu do žebříčku",
             message: `Potvrzujeme, že tvůj výkon (${score} ran) byl úspěšně zapsán do žebříčku v kategorii ${catLabel}.`,
           });
-        } catch {
-          /* email je nepovinný doplněk */
-        }
+        } catch {}
       }
     } catch (e) {
       flash$(e?.message || "Chyba při ukládání.", false);
@@ -515,7 +524,7 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
           onNo={() => setDelTarget(null)}
         />
       )}
-      {editTarget && <EditPlayerModal player={editTarget} onSave={handleEditSave} onCancel={() => setEditTarget(null)} />}
+      {editTarget && <EditPlayerModal player={editTarget} onSave={handleEditSave} onCancel={() => setEditTarget(null)} isDo15={isDo15} />}
 
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div className="flex items-center gap-2 min-h-[40px]">
@@ -599,7 +608,6 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
         </button>
       </div>
 
-      {/* Přepínač Sezónní / Historický */}
       <div className="flex rounded-2xl overflow-hidden mb-4 bg-white border border-gray-200" style={cardShadow}>
         {[["sezona", "Sezónní"], ["vsechny", "Historický"]].map(([val, lbl]) => (
           <button
@@ -615,7 +623,6 @@ function ScoresBoard({ category, isAdmin, season, themeColor }) {
         ))}
       </div>
 
-      {/* Countdown jen pod Sezónní přepínačem */}
       {view === "sezona" && season?.active && days !== null && (
         <div
           className="mb-5 rounded-2xl px-4 py-3 text-center text-sm font-bold border-2"
@@ -669,11 +676,11 @@ export default function App() {
       try {
         const p = await sGet(SK.PIN);
         if (p) setPin(p);
-      } catch { /* ignore */ }
+      } catch {}
       try {
         const s = await api.getSeason();
         if (s) setSeason(s);
-      } catch { /* ignore */ }
+      } catch {}
     })();
   }, []);
 
@@ -733,14 +740,15 @@ export default function App() {
 
   const days = season?.endDate ? daysUntil(season.endDate) : null;
   const tab = TABS[catTab];
-  // Nové barvy pro Admin (Zmena PIN = modra, sprava sezony = zelena, ... )
   const themeColor = catTab === 1 ? "#2563eb" : "#16a34a";
+  const isDo15 = tab.category === "do15";
 
   return (
     <div className="min-h-screen flex justify-center" style={{ background: C.bg }}>
-      {showPin && <PinModal currentPin={pin} onSuccess={() => { setShowPin(false); setIsAdmin(true); }} onCancel={() => setShowPin(false)} />}
+      {/* Modály předávají aktivní kategorii */}
+      {showPin && <PinModal currentPin={pin} onSuccess={() => { setShowPin(false); setIsAdmin(true); }} onCancel={() => setShowPin(false)} isDo15={isDo15} />}
       {showChangePin && <ChangePinModal currentPin={pin} onSave={handleSavePin} onCancel={() => setShowChangePin(false)} />}
-      {showNewSeason && <NewSeasonModal onSave={handleNewSeason} onCancel={() => setShowNewSeason(false)} />}
+      {showNewSeason && <NewSeasonModal onSave={handleNewSeason} onCancel={() => setShowNewSeason(false)} isDo15={isDo15} />}
       {showEndSeason && (
         <ConfirmDialog
           icon="🏁"
@@ -753,7 +761,6 @@ export default function App() {
       )}
       <div className="w-full max-w-lg px-5 py-10 pb-16 text-[#333]">
 
-        {/* HEADER - logo + název, klikatelné pro admin */}
         <header className="text-center mb-8 select-none">
           <div
             className="flex flex-col items-center gap-3 mb-2 cursor-default"
@@ -775,7 +782,6 @@ export default function App() {
           <p className="text-sm font-semibold text-[#4A4A4A] mt-1">Žebříček · Ukázka</p>
         </header>
 
-        {/* Banner aktivní sezóny */}
         {season?.active && (
           <div className="mb-6 rounded-2xl px-4 py-3 text-center text-sm font-bold border-2 border-[#fdba74] bg-white text-[#333]" style={cardShadow}>
             <span style={{ color: themeColor }}>🏆</span> Aktivní sezóna: {season.label}
@@ -787,7 +793,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Přepínač Do 15 / Od 15 */}
         <div className="flex rounded-2xl overflow-hidden mb-6 bg-white border border-gray-200" style={cardShadow}>
           {TABS.map((t, i) => (
             <button
@@ -805,7 +810,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* Admin panel */}
         {isAdmin && (
           <div className="mb-6 rounded-2xl p-5 bg-white border-2 border-gray-200" style={cardShadow}>
             <div className="flex items-center justify-between mb-4">
@@ -820,7 +824,6 @@ export default function App() {
             {season && !season.active && (
               <div className="mb-3 rounded-xl px-3 py-2 text-xs font-semibold bg-gray-50 text-[#4A4A4A] border border-gray-200">Žádná aktivní sezóna — zahaj novou se sekcí „Správa sezóny" níže.</div>
             )}
-            {/* Změna PIN - MODRÁ */}
             <button
               type="button"
               onClick={() => setShowChangePin(true)}
@@ -828,7 +831,6 @@ export default function App() {
             >
               Změnit PIN
             </button>
-            {/* Správa sezóny: ZELENÁ vizuální */}
             <div
               role="button"
               tabIndex={0}
@@ -849,11 +851,10 @@ export default function App() {
             </div>
             {seasonActionsRevealed && (
               <div className="mt-4 flex flex-wrap gap-2">
-                {/* Zahájit novou sezónu - MODRÁ větší CTA */}
                 <button
                   type="button"
                   onClick={() => setShowNewSeason(true)}
-                  className="text-xs font-bold px-3 py-2 rounded-xl bg-blue-600 text-white hover:opacity-95"
+                  className="text-xs font-bold px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
                 >
                   Zahájit novou sezónu
                 </button>
